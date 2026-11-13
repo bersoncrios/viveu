@@ -19,23 +19,22 @@ test('default builds and previews cannot select production implicitly', async ()
     replace: 'src/environments/environment.ts', with: 'src/environments/environment.prod.ts'
   }]);
   const pkg = await json('package.json');
-  assert.equal(pkg.scripts.build, 'ng build');
-  assert.equal(pkg.scripts['build:prod'], 'ng build --configuration=production');
+  assert.equal(pkg.scripts.build, 'node scripts/angular-env.mjs build hml');
+  assert.equal(pkg.scripts['build:prod'], 'node scripts/angular-env.mjs build prod');
 });
 
 test('Firebase configurations belong entirely to their specified project', async () => {
-  const expected = [
-    ['src/environments/environment.ts', false, 'vaultlog-hml', '144610498514', '82e60691ab9c8fe1feda0b'],
-    ['src/environments/environment.prod.ts', true, 'vaultlog-65c3d', '765817164177', '0cb411603eb1d35cba4a30']
-  ];
-  for (const [file, production, projectId, sender, app] of expected) {
-    const {environment} = await moduleFromText(await read(file));
+  for (const [file, production, target] of [
+    ['environment.ts', false, 'hml'],
+    ['environment.prod.ts', true, 'prod']
+  ]) {
+    const source = await read(`src/environments/${file}`);
+    assert.ok(source.includes(`from './firebase.${target}.local'`));
+    assert.doesNotMatch(source, /AIza|firebaseapp\.com|firebasestorage\.app/);
+    const firebase = {projectId: `fixture-${target}`};
+    const {environment} = await moduleFromText(source.replace(/^import .*;$/m, `const firebase = ${JSON.stringify(firebase)};`));
     assert.equal(environment.production, production);
-    assert.equal(environment.firebase.projectId, projectId);
-    assert.equal(environment.firebase.authDomain, `${projectId}.firebaseapp.com`);
-    assert.equal(environment.firebase.storageBucket, `${projectId}.firebasestorage.app`);
-    assert.equal(environment.firebase.messagingSenderId, sender);
-    assert.equal(environment.firebase.appId, `1:${sender}:web:${app}`);
+    assert.deepEqual(environment.firebase, firebase);
   }
   const config = await read('src/app/app.config.ts');
   assert.match(config, /from ['"]\.\.\/environments\/environment['"]/);

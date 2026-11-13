@@ -6,3 +6,7 @@ out-tsc/
 *.log
 .env*
 test-results/
+
+# Firebase configuration generated from local env or CI variables
+src/environments/firebase.*.local.ts
+!.env.example

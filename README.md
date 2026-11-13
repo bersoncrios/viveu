@@ -29,7 +29,11 @@ A análise de sintaxe é complementar ao build, não valida integração. Casos 
 
 ## Firebase
 
-`src/environments/environment.ts` aponta exclusivamente para `vaultlog-hml`. `environment.prod.ts` aponta exclusivamente para `vaultlog-65c3d`. As configurações públicas fornecidas estão preservadas. Não há Analytics inicializado nem Cloud Functions.
+As configurações ficam em `.env.hml.local` (projeto `vaultlog-hml`) e `.env.prod.local` (projeto `vaultlog-65c3d`), ambos ignorados pelo Git. Os dois arquivos locais foram preenchidos neste workspace. Em um novo clone, use `.env.example` como modelo e preencha cada arquivo com os valores do projeto correspondente.
+
+`npm start` e `npm run start:hml` usam HML; `npm run start:prod` usa produção. `npm run build` e `npm run build:hml` compilam HML; `npm run build:prod` compila produção. Use esses comandos para gerar a configuração antes de executar Angular. Os arquivos `src/environments/firebase.*.local.ts` são gerados e também ignorados pelo Git. O script recusa projeto, domínio ou bucket incompatíveis com o ambiente escolhido.
+
+Na Vercel, configure as variáveis `FIREBASE_*` listadas em `.env.example` separadamente para Production e Preview. Variáveis do processo têm prioridade sobre os arquivos locais; não envie os arquivos locais ao Git. A configuração Firebase Web entra no bundle do navegador; as permissões dependem de Authentication e regras Firestore. Não há Analytics inicializado nem Cloud Functions.
 
 Antes de testar HML, um administrador deve verificar no console HML: Google habilitado em Authentication, domínios localhost/preview autorizados, Firestore criado e índice de `firestore.indexes.json` disponível. A aplicação não tem credenciais administrativas para realizar essas ações. Os testes de dois usuários e persistência precisam de sessões Google reais.
 
