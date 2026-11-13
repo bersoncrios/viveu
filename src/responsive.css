@@ -1,0 +1,302 @@
+/* App pages and navigation only. Landing and login keep their scoped layouts. */
+.app-content,
+.app-content :is(.feed-layout, .feed-aside, .entry-list, .form-page, .field,
+  .page-heading > div, .profile-identity > div, .queue-detail, .entry-body,
+  .active-journey, .journey-notes, .journey-timeline li) {
+  min-width: 0;
+}
+
+.app-content :is(.feed-layout, .feed-aside, .card-grid, .two-columns) > *,
+.app-content :is(.queue-form, .category-options) > * {
+  min-width: 0;
+}
+
+.app-content :is(h1, h2, h3, p, legend, .eyebrow, .field label,
+  .following-list a, .friend-list strong, .author-link > span:last-child) {
+  overflow-wrap: anywhere;
+}
+
+.app-content :is(input, textarea, select, fieldset) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.app-content :is(.button, .journey-status, .category-pill, .entry-feelings li) {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.app-content .entry-card {
+  overflow: visible;
+}
+
+.app-content .author-link {
+  max-width: 100%;
+}
+
+.app-content .entry-meta {
+  flex-wrap: wrap;
+}
+
+.app-content .entry-meta time {
+  flex-shrink: 0;
+}
+
+.app-content :is(.feeling-option input, .note-spoiler input,
+  .spoiler-setting input, .category-option input, .public-note > span) {
+  flex-shrink: 0;
+}
+
+.app-content .public-note {
+  align-items: flex-start;
+}
+
+.app-content :is(.note-spoiler, .spoiler-setting label) {
+  align-items: flex-start;
+  line-height: 1.6;
+}
+
+.app-content :is(.note-spoiler input, .spoiler-setting input) {
+  margin-top: 3px;
+}
+
+.app-content .journey-timeline {
+  min-width: 0;
+}
+
+.app-content .journey-timeline p {
+  margin-bottom: 12px;
+}
+
+@media (max-width: 1024px) {
+  .app-content .queue-form {
+    grid-template-columns: minmax(0, 1fr) minmax(150px, .7fr);
+  }
+
+  .app-content .queue-item {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: 16px;
+  }
+
+  .app-content .queue-position {
+    align-self: start;
+  }
+
+  .app-content .queue-actions {
+    grid-column: 1 / -1;
+    width: 100%;
+    max-width: none;
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 8px;
+    border-top: 1px solid var(--border);
+    padding-top: 14px;
+    margin-top: 0;
+  }
+
+  .app-content :is(.button.small, .queue-actions .button, .profile-topline .button) {
+    min-height: 44px;
+  }
+
+  .app-content .queue-actions .icon-button {
+    min-width: 44px;
+  }
+
+  .app-content .profile-actions {
+    margin-left: 0;
+  }
+
+  .app-content .feed-aside .queue-prompt {
+    display: block;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1024px) {
+  .app-content .entry-form {
+    padding: 26px;
+  }
+
+  .app-content .feed-aside {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .app-content .profile-identity {
+    gap: 18px;
+  }
+
+  .app-content .profile-identity .avatar-large {
+    width: 72px;
+    height: 72px;
+  }
+}
+
+@media (max-width: 767px) {
+  html {
+    scroll-padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .mobile-header {
+    flex-wrap: wrap;
+    padding: calc(14px + env(safe-area-inset-top, 0px))
+      max(16px, env(safe-area-inset-right, 0px)) 14px
+      max(16px, env(safe-area-inset-left, 0px));
+  }
+
+  .mobile-header .brand {
+    min-height: 44px;
+    flex-shrink: 0;
+  }
+
+  .mobile-header .actions {
+    min-width: 0;
+    flex-wrap: wrap;
+    margin-left: auto;
+  }
+
+  .mobile-header .button {
+    min-height: 44px;
+    white-space: normal;
+  }
+
+  .app-content {
+    padding: 26px max(16px, env(safe-area-inset-right, 0px))
+      calc(100px + env(safe-area-inset-bottom, 0px))
+      max(16px, env(safe-area-inset-left, 0px));
+  }
+
+  .mobile-nav {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 4px;
+    padding: 8px max(8px, env(safe-area-inset-right, 0px))
+      max(10px, env(safe-area-inset-bottom, 0px))
+      max(8px, env(safe-area-inset-left, 0px));
+  }
+
+  .mobile-nav a {
+    min-width: 0;
+    min-height: 48px;
+    padding: 5px 4px;
+    overflow-wrap: anywhere;
+  }
+
+  .app-content :is(.panel, .entry-card, .entry-form, .profile-hero) {
+    padding: 22px;
+  }
+
+  .app-content :is(.queue-form, .two-columns, .feed-layout) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .app-content .queue-form > .button {
+    justify-self: stretch;
+  }
+
+  .app-content .queue-actions .button-row {
+    flex-shrink: 0;
+    gap: 8px;
+  }
+
+  .app-content .queue-actions > .button {
+    flex: 1 1 120px;
+  }
+
+  .app-content .rating-options {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .app-content .rating-option {
+    width: auto;
+    min-width: 0;
+  }
+
+  .app-content :is(.entry-actions, .button-row) {
+    align-items: stretch;
+  }
+
+  .app-content .entry-actions > .button {
+    flex: 1 1 125px;
+  }
+
+  .app-content .confirm-panel .button-row > .button {
+    flex: 1 1 160px;
+  }
+
+  .app-content .feeling-options {
+    gap: 8px;
+  }
+
+  .app-content .feeling-option {
+    min-width: 0;
+    max-width: 100%;
+    padding: 10px 12px;
+  }
+
+  .app-content .journey-timeline {
+    padding-left: 14px;
+  }
+
+  .app-content .spoiler-warning > .button {
+    flex: 1 1 160px;
+  }
+
+  .app-content .profile-identity > div {
+    flex: 1;
+  }
+
+  .app-content .following-list {
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+@media (max-width: 390px) {
+  .app-content :is(.panel, .entry-card, .entry-form, .profile-hero) {
+    padding: 18px;
+  }
+
+  .app-content .category-option {
+    padding: 11px 8px;
+    gap: 5px;
+  }
+
+  .app-content .profile-identity {
+    display: block;
+  }
+
+  .app-content .profile-identity .avatar-large {
+    margin-bottom: 16px;
+  }
+
+  .app-content .profile-identity h1 {
+    font-size: 29px;
+  }
+
+  .app-content .expectation-recall {
+    padding: 18px;
+  }
+}
+
+@media (max-width: 360px) {
+  .app-content h1 {
+    font-size: 32px;
+  }
+
+  .app-content .rating-options {
+    gap: 5px;
+  }
+
+  .app-content .queue-actions > .button {
+    flex-basis: 100%;
+  }
+
+  .app-content .profile-topline > .button {
+    width: 100%;
+  }
+}

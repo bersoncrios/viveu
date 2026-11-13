@@ -1,0 +1,218 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isSelf(uid) { return signedIn() && request.auth.uid == uid; }
+    function uid(value) { return value is string && value.size() > 0 && value.size() <= 128 && !value.matches('.*/.*') && value != '.' && value != '..'; }
+    function text(value, max) { return value is string && value.size() <= max; }
+    function nonempty(value, max) { return text(value, max) && value.size() > 0 && !value.matches('\\s*'); }
+    function date(value) { return value is number && value >= 0 && value <= 8640000000000000; }
+    function category(value) { return value in ['filme', 'serie', 'livro', 'jogo', 'podcast', 'musica']; }
+    function status(value) { return value in ['in_progress', 'paused', 'completed', 'abandoned']; }
+    function rating(value) { return value == null || (value is int && value >= 1 && value <= 5); }
+    function sharedEnabled() {
+      return signedIn()
+        && get(/databases/$(database)/documents/appConfig/sharedJourneys).data.enabled == true
+        && get(/databases/$(database)/documents/appConfig/sharedJourneys).data.rulesVersion == 1;
+    }
+    function group(id) { return get(/databases/$(database)/documents/sharedJourneys/$(id)).data; }
+    function groupAfter(id) { return getAfter(/databases/$(database)/documents/sharedJourneys/$(id)).data; }
+    function memberAfter(id, person) { return getAfter(/databases/$(database)/documents/sharedJourneys/$(id)/members/$(person)).data; }
+    function active(id) {
+      return sharedEnabled() && request.auth.uid in group(id).memberIds
+        && get(/databases/$(database)/documents/sharedJourneys/$(id)/members/$(request.auth.uid)).data.state == 'active';
+    }
+    function owner(id) { return active(id) && group(id).ownerId == request.auth.uid; }
+    function finishingArchived(id) {
+      let before = get(/databases/$(database)/documents/sharedJourneys/$(id)/members/$(request.auth.uid)).data;
+      let after = memberAfter(id, request.auth.uid);
+      return after.state == 'active' && after.status == 'completed' && after.rating != null
+        && after.updatedAt > before.updatedAt
+        && after.diff(before).affectedKeys().hasOnly(['status', 'rating', 'reflection', 'entryPublished', 'updatedAt']);
+    }
+    function unchangedArrays(before, after) {
+      return before.memberIds == after.memberIds && before.invitedIds == after.invitedIds && before.audienceIds == after.audienceIds;
+    }
+    function validMilestone(m) {
+      return m is map && m.keys().hasAll(['id', 'title', 'position', 'meetingAt', 'question'])
+        && m.keys().hasOnly(['id', 'title', 'position', 'meetingAt', 'question'])
+        && uid(m.id) && nonempty(m.title, 120) && m.position is int && m.position >= 0 && m.position <= 1000000
+        && (m.meetingAt == null || date(m.meetingAt)) && text(m.question, 500);
+    }
+    function validScheduleChange(before, after) {
+      let added = after.removeAll(before);
+      let removed = before.removeAll(after);
+      // The service edits one milestone per transaction. Validate just that delta:
+      // validating twenty complete maps on every write exceeds Rules' expression budget.
+      return before == after || (added.size() <= 1 && removed.size() <= 1
+        && after.toSet().size() == after.size() && (added.size() == 0 || validMilestone(added[0])));
+    }
+    function validGroup(g) {
+      return g.keys().hasAll(['ownerId', 'ownerName', 'title', 'category', 'description', 'pace', 'unit',
+          'memberIds', 'invitedIds', 'audienceIds', 'milestones', 'archived', 'createdAt', 'updatedAt'])
+        && g.keys().hasOnly(['ownerId', 'ownerName', 'title', 'category', 'description', 'pace', 'unit',
+          'memberIds', 'invitedIds', 'audienceIds', 'milestones', 'archived', 'createdAt', 'updatedAt'])
+        && uid(g.ownerId) && nonempty(g.ownerName, 60) && nonempty(g.title, 160) && category(g.category)
+        && text(g.description, 1000) && g.pace in ['free', 'milestones']
+        && g.unit in ['capitulo', 'episodio', 'pagina', 'faixa', 'sessao', 'etapa']
+        && g.archived is bool && date(g.createdAt) && date(g.updatedAt) && g.updatedAt >= g.createdAt
+        && g.memberIds is list && g.invitedIds is list && g.audienceIds is list
+        && g.memberIds.size() >= 1 && g.audienceIds.size() <= 30
+        && g.memberIds.toSet().size() == g.memberIds.size() && g.invitedIds.toSet().size() == g.invitedIds.size()
+        && g.audienceIds.toSet().size() == g.audienceIds.size()
+        && g.ownerId in g.memberIds && !g.memberIds.hasAny(g.invitedIds)
+        && g.audienceIds.toSet() == g.memberIds.toSet().union(g.invitedIds.toSet())
+        && g.milestones is list && g.milestones.size() <= 20;
+    }
+    function validMember(m, person) {
+      return m.keys().hasAll(['uid', 'displayName', 'photoURL', 'role', 'state', 'progress', 'status', 'entryId',
+          'entryPublished', 'rating', 'reflection', 'joinedAt', 'invitedAt', 'updatedAt'])
+        && m.keys().hasOnly(['uid', 'displayName', 'photoURL', 'role', 'state', 'progress', 'status', 'entryId',
+          'entryPublished', 'rating', 'reflection', 'joinedAt', 'invitedAt', 'updatedAt'])
+        && m.uid == person && uid(m.uid) && nonempty(m.displayName, 60) && text(m.photoURL, 2048)
+        && m.role in ['owner', 'member'] && m.state in ['invited', 'active', 'declined', 'left']
+        && m.progress is int && m.progress >= 0 && m.progress <= 1000000 && status(m.status)
+        && uid(m.entryId) && m.entryPublished is bool && rating(m.rating) && text(m.reflection, 3000)
+        && (m.status != 'completed' || m.rating != null)
+        && (m.joinedAt == null || date(m.joinedAt)) && date(m.invitedAt) && date(m.updatedAt)
+        && m.updatedAt >= m.invitedAt;
+    }
+    function initialMember(m) {
+      return m.progress == 0 && m.status == 'in_progress' && !m.entryPublished && m.rating == null && m.reflection == '';
+    }
+    function matchingMember(id, person, state) {
+      let m = memberAfter(id, person);
+      return m.uid == person && m.state == state && m.role == 'member';
+    }
+    function invitation(id, before, after) {
+      let added = after.invitedIds.removeAll(before.invitedIds);
+      return request.auth.uid == before.ownerId
+        && after.diff(before).affectedKeys().hasOnly(['invitedIds', 'audienceIds', 'updatedAt'])
+        && before.memberIds == after.memberIds && added.size() == 1
+        && after.invitedIds.size() == before.invitedIds.size() + 1
+        && after.invitedIds.hasAll(before.invitedIds) && uid(added[0]) && !before.audienceIds.hasAny(added)
+        && after.audienceIds.toSet() == before.audienceIds.toSet().union(added.toSet())
+        && matchingMember(id, added[0], 'invited');
+    }
+    function selfMembership(id, before, after) {
+      let person = request.auth.uid;
+      return person != before.ownerId
+        && after.diff(before).affectedKeys().hasOnly(['memberIds', 'invitedIds', 'audienceIds', 'updatedAt'])
+        && (
+          (person in before.invitedIds && !(person in after.invitedIds)
+            && after.invitedIds.toSet() == before.invitedIds.toSet().difference([person].toSet())
+            && ((after.memberIds.toSet() == before.memberIds.toSet().union([person].toSet())
+                && after.audienceIds.toSet() == before.audienceIds.toSet() && matchingMember(id, person, 'active'))
+              || (after.memberIds == before.memberIds
+                && after.audienceIds.toSet() == before.audienceIds.toSet().difference([person].toSet())
+                && matchingMember(id, person, 'declined'))))
+          || (person in before.memberIds && after.memberIds.toSet() == before.memberIds.toSet().difference([person].toSet())
+            && after.invitedIds == before.invitedIds
+            && after.audienceIds.toSet() == before.audienceIds.toSet().difference([person].toSet())
+            && matchingMember(id, person, 'left'))
+        );
+    }
+
+    // Personal data keeps the existing public-profile/public-journal contract.
+    match /users/{person} {
+      allow read: if true;
+      allow create: if isSelf(person) && request.resource.data.uid == person && date(request.resource.data.createdAt);
+      allow update: if isSelf(person) && request.resource.data.uid == person
+        && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if false;
+      match /queue/{item} { allow read, write: if isSelf(person); }
+      match /following/{friend} { allow read, write: if isSelf(person); }
+    }
+    match /entries/{entry} {
+      allow read: if true;
+      allow create: if signedIn() && request.resource.data.authorId == request.auth.uid && date(request.resource.data.createdAt);
+      allow update: if signedIn() && resource.data.authorId == request.auth.uid
+        && request.resource.data.authorId == resource.data.authorId && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if signedIn() && resource.data.authorId == request.auth.uid;
+    }
+    match /appConfig/sharedJourneys {
+      allow get: if signedIn();
+      allow list, write: if false;
+    }
+    match /sharedJourneys/{id} {
+      allow get: if sharedEnabled() && request.auth.uid in resource.data.audienceIds;
+      allow list: if sharedEnabled() && request.query.limit <= 21 && request.auth.uid in resource.data.audienceIds;
+      allow create: if sharedEnabled() && validGroup(request.resource.data)
+        && request.resource.data.archived == false
+        && request.resource.data.milestones == []
+        && request.resource.data.ownerId == request.auth.uid && request.resource.data.memberIds == [request.auth.uid]
+        && request.resource.data.invitedIds == [] && request.resource.data.audienceIds == [request.auth.uid]
+        && memberAfter(id, request.auth.uid).uid == request.auth.uid && memberAfter(id, request.auth.uid).role == 'owner'
+        && memberAfter(id, request.auth.uid).state == 'active';
+      allow update: if sharedEnabled() && validGroup(request.resource.data)
+        && validScheduleChange(resource.data.milestones, request.resource.data.milestones)
+        && request.resource.data.ownerId == resource.data.ownerId && request.resource.data.ownerName == resource.data.ownerName
+        && request.resource.data.createdAt == resource.data.createdAt && request.resource.data.updatedAt >= resource.data.updatedAt
+        && (
+          (active(id) && unchangedArrays(resource.data, request.resource.data)
+            && ((!resource.data.archived && (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['updatedAt'])
+                || request.auth.uid == resource.data.ownerId))
+              || (resource.data.archived && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['updatedAt']) && finishingArchived(id))))
+          || (!resource.data.archived && invitation(id, resource.data, request.resource.data))
+          || ((!resource.data.archived || !(request.auth.uid in request.resource.data.audienceIds))
+            && selfMembership(id, resource.data, request.resource.data))
+        );
+      allow delete: if false;
+
+      match /members/{person} {
+        allow get: if sharedEnabled() && (isSelf(person) || active(id));
+        allow list: if active(id);
+        allow create: if sharedEnabled() && validMember(request.resource.data, person) && initialMember(request.resource.data)
+          && ((isSelf(person) && groupAfter(id).ownerId == person && request.resource.data.role == 'owner'
+              && request.resource.data.state == 'active' && request.resource.data.joinedAt != null
+              && groupAfter(id).memberIds == [person])
+            || (groupAfter(id).ownerId == request.auth.uid && request.resource.data.role == 'member'
+              && request.resource.data.state == 'invited' && request.resource.data.joinedAt == null
+              && person in groupAfter(id).invitedIds && !(person in groupAfter(id).memberIds)));
+        allow update: if sharedEnabled() && validMember(request.resource.data, person)
+          && request.resource.data.uid == resource.data.uid && request.resource.data.role == resource.data.role
+          && request.resource.data.entryId == resource.data.entryId && request.resource.data.updatedAt >= resource.data.updatedAt
+          && (!resource.data.entryPublished || request.resource.data.entryPublished)
+          && (resource.data.entryPublished == request.resource.data.entryPublished
+            || getAfter(/databases/$(database)/documents/entries/$(request.resource.data.entryId)).data.authorId == person)
+          && (
+            (isSelf(person) && resource.data.state == 'active' && request.resource.data.state == 'active' && active(id)
+              && (!group(id).archived || (request.resource.data.status == 'completed' && request.resource.data.rating != null
+                && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'rating', 'reflection', 'entryPublished', 'updatedAt'])))
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'photoURL', 'progress', 'status', 'entryPublished', 'rating', 'reflection', 'updatedAt']))
+            || (isSelf(person) && (!group(id).archived || request.resource.data.state == 'declined')
+              && resource.data.role == 'member' && resource.data.state == 'invited'
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['state', 'joinedAt', 'updatedAt'])
+              && ((request.resource.data.state == 'active' && request.resource.data.joinedAt != null
+                  && person in groupAfter(id).memberIds && !(person in groupAfter(id).invitedIds))
+                || (request.resource.data.state == 'declined' && request.resource.data.joinedAt == resource.data.joinedAt
+                  && !(person in groupAfter(id).audienceIds))))
+            || (isSelf(person) && resource.data.role == 'member' && resource.data.state == 'active'
+              && request.resource.data.state == 'left'
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['state', 'updatedAt'])
+              && !(person in groupAfter(id).audienceIds))
+            || (owner(id) && !group(id).archived && resource.data.role == 'member' && resource.data.state in ['declined', 'left']
+              && request.resource.data.state == 'invited' && request.resource.data.joinedAt == resource.data.joinedAt
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['state', 'invitedAt', 'updatedAt'])
+              && person in groupAfter(id).invitedIds && !(person in groupAfter(id).memberIds))
+          );
+        allow delete: if false;
+      }
+      match /posts/{post} {
+        allow read: if active(id);
+        allow create: if active(id) && !group(id).archived
+          && request.resource.data.keys().hasAll(['authorId', 'authorName', 'text', 'kind', 'progress', 'containsSpoilers', 'publishedPublicly', 'createdAt'])
+          && request.resource.data.keys().hasOnly(['authorId', 'authorName', 'text', 'kind', 'progress', 'containsSpoilers', 'publishedPublicly', 'createdAt'])
+          && request.resource.data.authorId == request.auth.uid && nonempty(request.resource.data.authorName, 60)
+          && nonempty(request.resource.data.text, 1000) && request.resource.data.kind in ['note', 'question', 'session']
+          && (request.resource.data.progress == null || (request.resource.data.progress is int && request.resource.data.progress >= 0 && request.resource.data.progress <= 1000000))
+          && request.resource.data.containsSpoilers is bool && request.resource.data.publishedPublicly is bool
+          && (!request.resource.data.publishedPublicly
+            || (memberAfter(id, request.auth.uid).entryPublished
+              && getAfter(/databases/$(database)/documents/entries/$(memberAfter(id, request.auth.uid).entryId)).data.authorId == request.auth.uid))
+          && date(request.resource.data.createdAt);
+        allow update, delete: if false;
+      }
+    }
+  }
+}

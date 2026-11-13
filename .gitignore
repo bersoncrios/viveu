@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.angular/
+out-tsc/
+.vercel/
+*.log
+.env*
+test-results/
