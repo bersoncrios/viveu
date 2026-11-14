@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#213c33">
+  <title>Viveu — Pitch de investimento</title>
+  <style>
+    :root{--canvas:#f6f4ed;--paper:#fffefa;--ink:#213c33;--muted:#626b62;--forest:#234c3b;--soft:#e6ece3;--coral:#a94732;--line:#d9ded3;--lavender:#e5ddf0;--peach:#f4dfcf;--mint:#d9e8de;--gold:#e8bd70}
+    *{box-sizing:border-box}html{scroll-behavior:smooth;scroll-snap-type:y mandatory;background:#182b24}body{margin:0;color:var(--ink);font:16px/1.45 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.deck{width:min(100%,1600px);margin:auto}.slide{position:relative;min-height:100svh;aspect-ratio:16/9;overflow:hidden;padding:clamp(30px,5.5vw,88px) clamp(28px,7vw,112px);display:flex;flex-direction:column;justify-content:center;scroll-snap-align:start;background:var(--canvas);isolation:isolate}.slide::after{content:attr(data-number);position:absolute;right:4.5%;bottom:4%;font:italic 15px Georgia,serif;color:#758076;letter-spacing:.08em}.slide.dark{background:var(--forest);color:var(--paper);--muted:#d4ded4;--line:#ffffff30;--soft:#ffffff12}.slide h1,.slide h2,.slide h3,.serif{font-family:Georgia,"Times New Roman",serif;font-weight:400;letter-spacing:-.035em}.slide h1{font-size:clamp(52px,8vw,118px);line-height:.96;margin:18px 0 26px;max-width:1000px}.slide h2{font-size:clamp(38px,5.2vw,76px);line-height:1.02;margin:12px 0 24px;max-width:1050px}.slide h3{font-size:clamp(23px,2.3vw,34px);line-height:1.08;margin:0 0 10px}.slide p{margin:0 0 14px}.lead{font-size:clamp(19px,2.15vw,30px);line-height:1.42;max-width:850px;color:var(--muted)}.eyebrow{font-size:12px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--coral)}.dark .eyebrow{color:#f2a48b}.mark{display:inline-grid;place-items:center;width:42px;height:42px;border:1px solid currentColor;border-radius:13px;font:24px Georgia,serif;margin-right:10px;vertical-align:middle}.wordmark{font-size:26px;font-weight:750;letter-spacing:-.06em}.title-lockup{display:flex;align-items:center;margin-bottom:clamp(30px,5vh,62px)}.title-lockup .mark{width:48px;height:48px;background:#ffffff15}.title-sub{font-size:clamp(19px,2.4vw,32px);max-width:760px;color:#e3e9df}.title-foot{position:absolute;left:7%;bottom:8%;color:#d4ded4;font-size:13px;letter-spacing:.1em}.orbit{position:absolute;width:min(48vw,680px);aspect-ratio:1;border-radius:50%;right:5%;top:12%;border:1px solid #ffffff25;background:radial-gradient(circle at 50% 50%,#c66d5130 0 17%,transparent 17.4%),radial-gradient(circle at 50% 50%,transparent 0 34%,#ffffff15 34.2% 34.5%,transparent 34.7% 54%,#ffffff12 54.2% 54.5%,transparent 54.7%)}.orbit span{position:absolute;display:grid;place-items:center;width:82px;height:82px;border-radius:24px;background:#fffefa;color:var(--ink);box-shadow:0 12px 36px #10251c50;font-size:35px}.orbit span:nth-child(1){left:14%;top:21%}.orbit span:nth-child(2){right:14%;top:13%}.orbit span:nth-child(3){right:5%;top:53%}.orbit span:nth-child(4){right:32%;bottom:5%}.orbit span:nth-child(5){left:6%;bottom:20%}.orbit span:nth-child(6){left:34%;top:43%;background:#d6876d;color:#fff;font:italic 24px Georgia,serif}.grid{display:grid;gap:16px}.grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}.grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}.grid.four{grid-template-columns:repeat(4,minmax(0,1fr))}.card{padding:clamp(20px,2.4vw,34px);border:1px solid var(--line);border-radius:20px;background:var(--paper);min-width:0}.dark .card{background:#ffffff0c}.card .symbol{font-size:32px;display:block;margin-bottom:20px}.card p{color:var(--muted);font-size:clamp(15px,1.25vw,19px);line-height:1.5}.number{font:clamp(52px,7vw,92px)/.95 Georgia,serif;color:var(--coral);letter-spacing:-.06em}.dark .number{color:#f2a48b}.pill{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:999px;padding:9px 14px;font-size:14px;background:var(--paper)}.dark .pill{background:#ffffff10}.quote{font:italic clamp(27px,4vw,54px)/1.2 Georgia,serif;max-width:900px;border-left:4px solid var(--coral);padding-left:26px}.split{display:grid;grid-template-columns:1.05fr .95fr;gap:clamp(30px,7vw,100px);align-items:center}.steps{display:grid;gap:14px}.step{display:grid;grid-template-columns:52px 1fr;gap:16px;align-items:start;padding:18px 0;border-bottom:1px solid var(--line)}.step b{font:32px Georgia,serif;color:var(--coral)}.step p{color:var(--muted);margin:3px 0}.flow{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:38px}.flow .node{flex:1;padding:20px 16px;border-radius:16px;background:var(--soft);text-align:center;font-weight:650}.flow .arrow{font-size:25px;color:var(--coral)}.metric-band{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px}.note{margin-top:20px;color:var(--muted);font-size:13px;max-width:850px}.dark .note{color:#cad5cc}.badge{display:inline-block;border-radius:7px;padding:5px 9px;background:#e9e7ce;color:var(--ink);font-size:12px;font-weight:700}.footer-brand{margin-top:auto;padding-top:28px;font-size:12px;letter-spacing:.12em;color:var(--muted)}.controls{position:fixed;z-index:10;right:20px;bottom:20px;display:flex;align-items:center;gap:8px;padding:8px;border:1px solid #fff4;border-radius:14px;background:#213c33e8;color:#fff;backdrop-filter:blur(12px)}.controls button{width:42px;height:42px;border:0;border-radius:10px;color:#fff;background:#ffffff16;font:20px system-ui;cursor:pointer}.controls button:hover{background:#ffffff2b}.controls button:focus-visible{outline:3px solid #f2a48b;outline-offset:2px}.counter{min-width:58px;text-align:center;font-size:13px;font-variant-numeric:tabular-nums}.progress{position:fixed;z-index:11;left:0;top:0;height:3px;background:#d6876d;width:0;transition:width .2s}.fineprint{font-size:12px;color:var(--muted);max-width:850px}.dark .fineprint{color:#c6d1c8}.accent-box{padding:22px 26px;border-radius:16px;background:var(--soft);border-left:4px solid var(--coral)}.accent-box p:last-child{margin-bottom:0}.category-row{display:flex;flex-wrap:wrap;gap:9px}.category-row .pill:nth-child(1){background:var(--peach)}.category-row .pill:nth-child(2){background:var(--lavender)}.category-row .pill:nth-child(3){background:#e9e7ce}.category-row .pill:nth-child(4){background:var(--mint)}.big-close{font:clamp(40px,6vw,84px)/1.05 Georgia,serif;max-width:980px;margin:20px 0}.slide:last-child .eyebrow{color:#f2a48b}
+    @media(max-width:760px){html{scroll-snap-type:y proximity}.slide{aspect-ratio:auto;min-height:100svh;padding:70px 24px 88px;justify-content:center}.grid.two,.grid.three,.grid.four,.split{grid-template-columns:1fr}.slide h1{font-size:clamp(48px,15vw,82px)}.slide h2{font-size:clamp(38px,11vw,58px)}.orbit{opacity:.22;width:100vw;right:-40vw;top:25%}.title-foot{bottom:5%}.flow{flex-direction:column;align-items:stretch}.flow .arrow{transform:rotate(90deg);text-align:center}.controls{right:10px;bottom:10px}.controls button{width:38px;height:38px}.card{padding:22px}.slide::after{bottom:12px}}
+    @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.controls button,.progress{transition:none}}
+    @media print{@page{size:16in 9in;margin:0}html{scroll-snap-type:none;background:white}body{background:white}.slide{width:16in;height:9in;min-height:0;aspect-ratio:auto;break-after:page;page-break-after:always;padding:.75in 1.1in;print-color-adjust:exact;-webkit-print-color-adjust:exact}.slide:last-of-type{break-after:auto;page-break-after:auto}.controls,.progress{display:none}.orbit{print-color-adjust:exact;-webkit-print-color-adjust:exact}.slide h1{font-size:78pt}.slide h2{font-size:48pt}.lead{font-size:20pt}.card p{font-size:13pt}}
+  </style>
+</head>
+<body>
+  <div class="progress" id="progress" aria-hidden="true"></div>
+  <main class="deck" aria-label="Pitch de investimento do Viveu">
+    <section class="slide dark" data-number="01 / 12" aria-labelledby="s1">
+      <div class="orbit" aria-hidden="true"><span>🎬</span><span>📚</span><span>🎮</span><span>🎵</span><span>🎙️</span><span>v.</span></div>
+      <div class="title-lockup"><span class="mark" aria-hidden="true">✦</span><span class="wordmark">viveu</span></div>
+      <p class="eyebrow">Pitch de investimento · 2026</p>
+      <h1 id="s1">O que a gente vive também merece ser lembrado.</h1>
+      <p class="title-sub">Um diário cultural para registrar experiências, descobrir afinidades e transformar consumo em memória.</p>
+      <p class="title-foot">FILMES · SÉRIES · LIVROS · JOGOS · PODCASTS · MÚSICAS</p>
+    </section>
+
+    <section class="slide" data-number="02 / 12" aria-labelledby="s2">
+      <p class="eyebrow">O problema</p><h2 id="s2">A cultura que consumimos se espalha. As lembranças também.</h2>
+      <div class="grid three">
+        <article class="card"><span class="symbol">⌁</span><h3>Em muitos lugares</h3><p>Notas, listas e recomendações ficam divididas entre serviços, aplicativos e conversas.</p></article>
+        <article class="card"><span class="symbol">◌</span><h3>Difícil de revisitar</h3><p>Depois de um tempo, fica difícil lembrar o que vimos, lemos, sentimos e recomendamos.</p></article>
+        <article class="card"><span class="symbol">↗</span><h3>Social sem contexto</h3><p>Uma nota ou um título isolado não conta a história pessoal por trás daquela experiência.</p></article>
+      </div>
+      <p class="note">Hipótese de produto: existe espaço para uma camada pessoal e social que organize a memória cultural entre categorias.</p>
+    </section>
+
+    <section class="slide dark" data-number="03 / 12" aria-labelledby="s3">
+      <div class="split"><div><p class="eyebrow">A proposta</p><h2 id="s3">Um lugar para guardar o que ficou com você.</h2><p class="lead">O Viveu organiza obras e jornadas em um diário cultural vivo: fácil de atualizar, agradável de revisitar e feito para compartilhar com quem tem gostos parecidos.</p></div><div class="steps"><div class="step"><b>01</b><div><h3>Registre</h3><p>Obra, categoria, nota, frase e anotações da jornada.</p></div></div><div class="step"><b>02</b><div><h3>Organize</h3><p>Histórico, status de consumo, fila e listas temáticas.</p></div></div><div class="step"><b>03</b><div><h3>Conecte</h3><p>Feed, reações, afinidades e memórias compartilhadas.</p></div></div></div></div>
+    </section>
+
+    <section class="slide" data-number="04 / 12" aria-labelledby="s4">
+      <p class="eyebrow">O produto</p><h2 id="s4">A jornada completa, não só o título.</h2>
+      <div class="grid four">
+        <article class="card"><span class="badge">REGISTRO</span><h3 style="margin-top:18px">Cada experiência</h3><p>Nota, frase, reflexão, sentimentos e notas privadas de jornada com controle de spoilers.</p></article>
+        <article class="card"><span class="badge">CONTINUIDADE</span><h3 style="margin-top:18px">Cada etapa</h3><p>Em andamento, pausada, concluída ou deixada para depois; com opção de viver novamente.</p></article>
+        <article class="card"><span class="badge">INTENÇÃO</span><h3 style="margin-top:18px">O próximo capítulo</h3><p>Fila pessoal ordenável, motivo para começar e sugestão do que fazer agora.</p></article>
+        <article class="card"><span class="badge">MEMÓRIA</span><h3 style="margin-top:18px">O que permanece</h3><p>Perfil público, linha do tempo, frases em destaque, conquistas e Wrapped mensal.</p></article>
+      </div>
+    </section>
+
+    <section class="slide" data-number="05 / 12" aria-labelledby="s5">
+      <div class="split"><div><p class="eyebrow">Uso recorrente</p><h2 id="s5">Pequenos motivos para voltar.</h2><p class="lead">O Viveu conecta registro, progresso e lembrança em ciclos de uso que podem caber na rotina.</p><div class="metric-band"><span class="pill">Streak de atividade</span><span class="pill">Conquistas</span><span class="pill">Sugestão da fila</span><span class="pill">Neste dia no passado</span><span class="pill">Wrapped mensal</span></div></div><div class="flow" aria-label="Ciclo de uso"><span class="node">Viveu algo</span><span class="arrow">→</span><span class="node">Registra</span><span class="arrow">→</span><span class="node">Revisita</span><span class="arrow">→</span><span class="node">Compartilha</span></div></div>
+      <p class="note">A retenção é uma hipótese a medir com usuários e coortes; ainda não apresentamos métricas de uso ou retenção.</p>
+    </section>
+
+    <section class="slide dark" data-number="06 / 12" aria-labelledby="s6">
+      <p class="eyebrow">Descoberta social</p><h2 id="s6">O gosto vira ponto de encontro.</h2>
+      <div class="grid three"><article class="card"><span class="symbol">◎</span><h3>Feed de amigos</h3><p>Veja experiências, filtre por categoria e leve uma recomendação direto para sua fila.</p></article><article class="card"><span class="symbol">♡</span><h3>Reações leves</h3><p>Responda a uma escolha cultural com uma reação rápida, sem transformar tudo em comentários.</p></article><article class="card"><span class="symbol">✦</span><h3>Compatibilidade</h3><p>Encontre obras e categorias em comum a partir dos registros dos dois perfis.</p></article></div>
+      <div class="accent-box" style="margin-top:20px"><p><strong>Camada de comunidade:</strong> listas públicas, status “Estou consumindo agora” e espaços privados para compartilhar impressões sobre a mesma obra.</p></div>
+    </section>
+
+    <section class="slide" data-number="07 / 12" aria-labelledby="s7">
+      <p class="eyebrow">Identidade cultural</p><h2 id="s7">Mais que um histórico. Um retrato do seu repertório.</h2>
+      <div class="split"><div><p class="quote">“Uma coleção de histórias que diz algo sobre quem você é.”</p><p class="note">Perfis podem mostrar categorias favoritas, obra marcante, nota média, frase recente, conquistas e linha do tempo.</p></div><div class="category-row"><span class="pill">🎬 Filmes</span><span class="pill">📺 Séries</span><span class="pill">📚 Livros</span><span class="pill">🎮 Jogos</span><span class="pill">🎙️ Podcasts</span><span class="pill">🎵 Músicas</span></div></div>
+    </section>
+
+    <section class="slide" data-number="08 / 12" aria-labelledby="s8">
+      <p class="eyebrow">Experiência e distribuição</p><h2 id="s8">Uma experiência acessível pela web, pronta para evoluir.</h2>
+      <div class="grid three"><article class="card"><span class="number">01</span><h3>Começo simples</h3><p>Login Google e onboarding para configurar preferências e registrar a primeira experiência.</p></article><article class="card"><span class="number">02</span><h3>Uso em qualquer tela</h3><p>Web responsiva, navegação adaptada e suporte a tema claro e escuro.</p></article><article class="card"><span class="number">03</span><h3>Base para crescer</h3><p>Angular standalone e Firebase como infraestrutura atual do produto.</p></article></div>
+      <p class="note">A validação de distribuição, canais de aquisição e conversão ainda faz parte das próximas etapas.</p>
+    </section>
+
+    <section class="slide dark" data-number="09 / 12" aria-labelledby="s9">
+      <p class="eyebrow">Modelo de negócio</p><h2 id="s9">Freemium com espaço para uma camada premium.</h2>
+      <div class="grid two"><article class="card"><span class="badge">GRATUITO</span><h3 style="margin-top:18px">Criar o hábito e o acervo</h3><p>Acesso aos registros, diário, fila e recursos sociais essenciais para formar uma biblioteca cultural pessoal.</p></article><article class="card"><span class="badge">PREMIUM · HIPÓTESE</span><h3 style="margin-top:18px">Mais formas de guardar e organizar</h3><p>Listas ampliadas e recursos avançados de preservação e exportação podem compor uma assinatura futura.</p></article></div>
+      <p class="note">Cobrança e paywall ainda não estão ativos. Disposição a pagar, pacote premium e preço precisam ser validados antes da monetização.</p>
+    </section>
+
+    <section class="slide" data-number="10 / 12" aria-labelledby="s10">
+      <p class="eyebrow">Estágio atual</p><h2 id="s10">Um MVP funcional com escopo amplo — pronto para validação.</h2>
+      <div class="split"><div><div class="number">231</div><h3>testes locais aprovados</h3><p class="lead" style="font-size:19px">Build HML concluído. O código foi integrado à branch principal.</p></div><div class="steps"><div class="step"><b>✓</b><div><h3>Produto</h3><p>Diário, fila, feed, perfis, listas, Wrapped e interações culturais.</p></div></div><div class="step"><b>✓</b><div><h3>Engenharia</h3><p>Angular 20, TypeScript estrito, Firebase/Firestore e testes de regras no emulador.</p></div></div><div class="step"><b>→</b><div><h3>Próxima evidência</h3><p>Testes com pessoas reais, instrumentação de métricas e validação operacional de segurança.</p></div></div></div></div>
+      <p class="note">Não há números de usuários, receita, crescimento ou retenção apresentados neste pitch. Regras de segurança do Firestore ainda não foram publicadas remotamente.</p>
+    </section>
+
+    <section class="slide" data-number="11 / 12" aria-labelledby="s11">
+      <p class="eyebrow">Tese de investimento</p><h2 id="s11">O próximo investimento compra aprendizado — e foco.</h2>
+      <div class="grid three"><article class="card"><span class="symbol">⌕</span><h3>Provar ativação</h3><p>Descobrir se o onboarding leva a um primeiro acervo criado e ao retorno na semana seguinte.</p></article><article class="card"><span class="symbol">↗</span><h3>Provar comunidade</h3><p>Medir se seguir amigos, reagir e compartilhar obras aumentam frequência e convites.</p></article><article class="card"><span class="symbol">◇</span><h3>Provar monetização</h3><p>Testar quais benefícios premium têm valor percebido antes de ativar cobrança.</p></article></div>
+      <div class="accent-box" style="margin-top:20px"><p><strong>Uso potencial de capital:</strong> pesquisa com usuários, instrumentação e análise, hardening de segurança, experimentos de aquisição e validação do pacote premium.</p></div>
+      <p class="note">Rodada, valor de captação e metas financeiras não foram definidos neste material.</p>
+    </section>
+
+    <section class="slide dark" data-number="12 / 12" aria-labelledby="s12">
+      <p class="eyebrow">Viveu</p><h2 id="s12" class="big-close">A cultura passa. O que ela deixa pode ficar.</h2>
+      <p class="lead">Um diário cultural pessoal, social e feito para crescer com cada história vivida.</p>
+      <div class="metric-band" style="margin-top:34px"><span class="pill">Registre</span><span class="pill">Relembre</span><span class="pill">Compartilhe</span></div>
+      <div class="footer-brand">VIVEU · PITCH DE INVESTIMENTO · 2026</div>
+    </section>
+  </main>
+  <nav class="controls" aria-label="Controles da apresentação">
+    <button type="button" id="previous" aria-label="Slide anterior">←</button><span class="counter" id="counter" aria-live="polite">01 / 12</span><button type="button" id="next" aria-label="Próximo slide">→</button><button type="button" id="print" aria-label="Imprimir ou salvar como PDF">⤓</button>
+  </nav>
+  <script>
+    (()=>{
+      const slides=Array.from(document.querySelectorAll('.slide'));
+      const counter=document.getElementById('counter');
+      const progress=document.getElementById('progress');
+      const show=(index)=>{const safe=Math.max(0,Math.min(slides.length-1,index));slides[safe]?.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});};
+      const update=()=>{let active=0;const center=innerHeight/2;slides.forEach((slide,index)=>{const rect=slide.getBoundingClientRect();if(rect.top<=center&&rect.bottom>=center)active=index;});if(counter)counter.textContent=`${String(active+1).padStart(2,'0')} / ${String(slides.length).padStart(2,'0')}`;if(progress)progress.style.width=`${((active+1)/slides.length)*100}%`;};
+      document.getElementById('previous')?.addEventListener('click',()=>{const active=slides.findIndex(slide=>{const rect=slide.getBoundingClientRect();return rect.top<=innerHeight/2&&rect.bottom>=innerHeight/2;});show(active-1);});
+      document.getElementById('next')?.addEventListener('click',()=>{const active=slides.findIndex(slide=>{const rect=slide.getBoundingClientRect();return rect.top<=innerHeight/2&&rect.bottom>=innerHeight/2;});show(active+1);});
+      document.getElementById('print')?.addEventListener('click',()=>print());
+      addEventListener('keydown',event=>{if(event.key==='ArrowRight'||event.key==='PageDown'){event.preventDefault();document.getElementById('next')?.click();}else if(event.key==='ArrowLeft'||event.key==='PageUp'){event.preventDefault();document.getElementById('previous')?.click();}else if(event.key==='Home'){event.preventDefault();show(0);}else if(event.key==='End'){event.preventDefault();show(slides.length-1);}});
+      addEventListener('scroll',update,{passive:true});addEventListener('resize',update);update();
+    })();
+  </script>
+</body>
+</html>
