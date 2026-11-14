@@ -1,4 +1,4 @@
-import { Component, effect, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs';
@@ -37,7 +37,7 @@ export function isPublicRoute(url: string): boolean {
         <div class="sidebar-note"><img class="sidebar-logo" src="/viveu-symbol.svg" width="40" height="40" alt="" aria-hidden="true"><p>Algumas histórias merecem<br>ficar com você.</p></div>
         <div class="sidebar-user">
           @if (auth.user(); as user) {
-            <a class="user-link" [routerLink]="['/u', user.uid]"><span class="avatar">{{ (auth.profile()?.displayName || user.displayName || 'V').slice(0, 1) }}</span><span><strong>{{ auth.profile()?.displayName || user.displayName || 'Meu perfil' }}</strong><small>Meu acervo pessoal</small></span></a>
+            <a class="user-link" [routerLink]="['/u', user.uid]"><span class="avatar sidebar-avatar">@if (photoUrl(); as photo) {@if (failedPhotoUrl() !== photo) {<img [src]="photo" alt="" aria-hidden="true" referrerpolicy="no-referrer" (error)="onPhotoError(photo)">} @else {<span aria-hidden="true">{{ profileInitial() }}</span>}} @else {<span aria-hidden="true">{{ profileInitial() }}</span>}</span><span><strong>{{ auth.profile()?.displayName || user.displayName || 'Meu perfil' }}</strong><small>Meu acervo pessoal</small></span></a>
             <button class="logout" (click)="logout()" [disabled]="loggingOut()">{{ loggingOut() ? 'Saindo…' : 'Sair da conta' }}</button>
             @if (sessionError()) { <p class="error" role="alert">{{ sessionError() }}</p> }
           } @else { <a class="button secondary" routerLink="/login">Entrar no Viveu</a> }
@@ -67,6 +67,10 @@ export function isPublicRoute(url: string): boolean {
 })
 export class AppComponent {
   readonly auth = inject(AuthService);
+  readonly photoUrl = computed(() => this.auth.profile()?.photoURL || this.auth.user()?.photoURL || '');
+  readonly failedPhotoUrl = signal('');
+  profileInitial() {return (this.auth.profile()?.displayName || this.auth.user()?.displayName || 'V').slice(0, 1).toUpperCase();}
+  onPhotoError(url: string) {this.failedPhotoUrl.set(url);}
   isOnboarding(){return this.router.url.startsWith('/onboarding')||this.router.url.startsWith('/together');}
   showQuickEntry(){const path=this.router.url.split(/[?#]/)[0];const uid=this.auth.user()?.uid;return path==='/feed'||path==='/queue'||(path==='/'&&!!uid)||(!!uid&&path===`/u/${uid}`);}
   private readonly document = inject(DOCUMENT);
