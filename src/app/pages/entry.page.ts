@@ -5,18 +5,19 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../core/auth.service';
 import { DataService } from '../core/data.service';
+import { NEW_ENTRY_SESSION_KEY } from '../core/diary-export';
 import { CATEGORIES, Category, Rating, FEELINGS, Feeling, MAX_FEELINGS, REFLECTION_MAX_LENGTH, reflectionPrompt, JOURNEY_STATUSES, JourneyStatus, JourneyNote, journeyStatus, JOURNEY_REASON_MAX_LENGTH, RESUME_POINT_MAX_LENGTH, JOURNEY_NOTE_MAX_LENGTH, MAX_JOURNEY_NOTES } from '../core/models';
 
 @Component({selector: 'app-entry-page', standalone: true, imports: [FormsModule, RouterLink, DatePipe], template: `
   <div class="form-page"><header class="page-heading"><div><span class="eyebrow">UMA EXPERIÊNCIA PARA LEMBRAR</span><h1>{{entryId ? 'Minha jornada' : previousEntryId ? 'Viver esta obra novamente' : 'Guardar uma experiência'}}</h1><p class="subtitle">Do primeiro interesse ao que ficou com você: cada passo faz parte da história.</p></div></header>
   @if (loading()) {<p role="status" class="loading-state">Carregando experiência…</p>}
   @if (error()) {<p class="error" role="alert">{{error()}}</p>}
-  @if (saved()) {<section class="panel" role="status"><h2>Registro salvo.</h2><p>Seu registro já está no seu diário.</p><a class="button primary" routerLink="/diary">Ver meu diário</a></section>}
+  @if (saved()) {<section class="panel entry-saved-feedback" [class.entry-created-feedback]="!entryId" role="status"><span class="entry-saved-spark" aria-hidden="true">✦</span><h2>Registro salvo.</h2><p>Seu registro já está no seu diário.</p><a class="button primary" routerLink="/diary">Ver meu diário</a></section>}
   @if (!loading() && !loadFailed() && !saved()) {
     <form class="panel entry-form" (ngSubmit)="save()" novalidate>
       @if (queueId) {<p class="notice">Da sua fila para a sua jornada. O título só sai da fila depois de salvar.</p>}
       <div class="field"><label for="entry-title">Título</label><input id="entry-title" name="title" [(ngModel)]="title" maxlength="160" required placeholder="Que obra faz parte da sua jornada?" [attr.aria-invalid]="submitted() && !title.trim()" [disabled]="busy()"></div>
-      <fieldset class="category-fieldset"><legend>Categoria</legend><div class="category-options">@for (item of categories; track item.value) {<label class="category-option" [class.selected]="category === item.value" [attr.data-category]="item.value"><input type="radio" name="category" [value]="item.value" [(ngModel)]="category" required [disabled]="busy()"><span aria-hidden="true">{{item.icon}}</span>{{item.singular}}</label>}</div></fieldset>
+      <fieldset class="category-fieldset"><legend>Categoria</legend><div class="category-options">@for (item of categories; track item.value) {<label class="category-option" [class.selected]="category === item.value" [attr.data-category]="item.value" [style.background-color]="item.bgColor" [style.color]="item.textColor"><input type="radio" name="category" [value]="item.value" [(ngModel)]="category" required [disabled]="busy()"><span aria-hidden="true">{{item.icon}}</span>{{item.singular}}</label>}</div></fieldset>
       @if (previousEntryId) {<p class="notice">Uma nova passagem por esta obra. Sua experiência anterior continua guardada.</p>}
       <div class="field"><label for="journey-status">Em que momento você está?</label><select id="journey-status" name="status" [(ngModel)]="status" [disabled]="busy()">@for (option of statuses; track option.value) {<option [value]="option.value">{{option.label}}</option>}</select><p class="field-help">Tudo bem pausar ou deixar uma obra para depois. Você pode retomar quando quiser.</p></div>
       <div class="field"><label for="journey-reason">Por que quis começar? <span class="muted">(opcional)</span></label><textarea id="journey-reason" name="reason" [(ngModel)]="reason" [maxlength]="reasonMaxLength" rows="3" [disabled]="busy()" placeholder="Uma indicação, uma curiosidade, uma vontade…" aria-describedby="reason-count"></textarea><span id="reason-count" class="field-help character-count">{{reason.length}} / {{reasonMaxLength}}</span></div>
@@ -39,7 +40,7 @@ import { CATEGORIES, Category, Rating, FEELINGS, Feeling, MAX_FEELINGS, REFLECTI
   }
   @if (loadFailed()) {<a class="button secondary" routerLink="/diary">Voltar ao diário</a>}
   </div>
-`})
+`, styles: [`.entry-created-feedback{position:relative;overflow:hidden;animation:entry-confirm 560ms ease-out both}.entry-saved-spark{position:absolute;top:16px;right:20px;color:var(--coral);font-size:28px;animation:entry-spark 560ms ease-out both}@keyframes entry-confirm{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}@keyframes entry-spark{0%{opacity:0;transform:scale(.4) rotate(-25deg)}45%{opacity:1;transform:scale(1.3) rotate(12deg)}100%{opacity:1;transform:scale(1) rotate(0)}}@media(prefers-reduced-motion:reduce){.entry-created-feedback,.entry-saved-spark{animation:none}}`]})
 export class EntryPage {
   private auth = inject(AuthService); private data = inject(DataService); private route = inject(ActivatedRoute); private router = inject(Router);
   categories = CATEGORIES; ratings = [1, 2, 3, 4, 5] as const;
@@ -106,7 +107,8 @@ export class EntryPage {
     if (this.noteDraft.trim() && !this.addNote()) return;
     this.busy.set(true);
     try {
-      await this.data.saveEntry({title: this.title.trim(), category: this.category, rating: this.rating, quote: this.quote.trim(), reflection: this.reflection.trim(), feelings: [...this.feelings], containsSpoilers: this.containsSpoilers, status: this.status, reason: this.reason.trim(), resumePoint: this.resumePoint.trim(), notes: this.notes.map(note => ({...note})), previousEntryId: this.previousEntryId, expectedUpdatedAt: this.expectedUpdatedAt}, this.entryId, this.queueId);
+      const savedId = await this.data.saveEntry({title: this.title.trim(), category: this.category, rating: this.rating, quote: this.quote.trim(), reflection: this.reflection.trim(), feelings: [...this.feelings], containsSpoilers: this.containsSpoilers, status: this.status, reason: this.reason.trim(), resumePoint: this.resumePoint.trim(), notes: this.notes.map(note => ({...note})), previousEntryId: this.previousEntryId, expectedUpdatedAt: this.expectedUpdatedAt}, this.entryId, this.queueId);
+      if (!this.entryId && typeof sessionStorage !== 'undefined') {try {sessionStorage.setItem(NEW_ENTRY_SESSION_KEY, savedId);} catch { /* Storage may be disabled; saving must still succeed. */ }}
       this.saved.set(true);
     } catch (error) {this.error.set(dataErrorMessage(error, 'Não foi possível salvar. Seu texto continua aqui; tente novamente.'));}
     finally {this.busy.set(false);}

@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import ts from 'typescript';
+const source=await readFile(new URL('../src/app/pages/queue.page.ts',import.meta.url),'utf8');
+const compiled=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,experimentalDecorators:true}}).outputText;
+const exports={};
+const modules={'@angular/core':{Component:()=>x=>x,inject:()=>({})},'@angular/forms':{FormsModule:class{}},'@angular/router':{Router:class{},RouterLink:class{}},'../core/auth.service':{AuthService:class{}},'../core/data.service':{DataService:class{}},'../core/models':{CATEGORIES:[],categoryLabel:x=>x},'../core/data-error':{dataErrorMessage:x=>x}};
+new Function('require','exports',compiled)(name=>modules[name],exports);
+test('queue swipe requires 30 percent and selects the correct action',()=>{assert.equal(exports.queueSwipeAction(29,100),null);assert.equal(exports.queueSwipeAction(30,100),'start');assert.equal(exports.queueSwipeAction(-31,100),'remove');assert.equal(exports.queueSwipeAction(-5,0),null);});

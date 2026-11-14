@@ -1,4 +1,5 @@
 import { Component } from '@angular/core';
+import { CATEGORIES } from '../core/models';
 
 /** Editorial illustration only. Never reads or writes a user's journal. */
 @Component({
@@ -10,7 +11,7 @@ import { Component } from '@angular/core';
       <div class="preview-ticket" aria-hidden="true"><span>PLAY. PAUSE. REMEMBER.</span><strong>Sua próxima história</strong><span>FILMES · LIVROS · MÚSICAS · E MAIS</span></div>
       <article class="preview-journal">
         <div class="preview-journal-top"><span class="preview-indicator"></span> MINHA JORNADA <span class="preview-example">EXEMPLO</span></div>
-        <div class="preview-journal-heading"><span class="preview-category">Livro</span><span class="preview-status">Em andamento</span></div>
+        <div class="preview-journal-heading"><span class="preview-category" [style.background-color]="book.bgColor" [style.color]="book.textColor">{{book.icon}} {{book.singular}}</span><span class="preview-status">Em andamento</span></div>
         <h3>Entre páginas</h3>
         <p class="preview-question">O que ficou com você?</p>
         <p class="preview-reflection">“Talvez algumas histórias cheguem na hora em que a gente mais precisa delas.”</p>
@@ -22,4 +23,4 @@ import { Component } from '@angular/core';
   `,
   styleUrl: './journey-preview.css',
 })
-export class JourneyPreview {}
+export class JourneyPreview {readonly book = CATEGORIES.find(item => item.value === 'livro')!;}

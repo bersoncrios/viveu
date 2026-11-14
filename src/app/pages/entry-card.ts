@@ -1,12 +1,14 @@
-import { Component, computed, input, output, signal } from '@angular/core';
+import { Component, computed, input, OnInit, output, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { categoryLabel, ConsumptionEntry, FEELINGS, journeyStatusLabel, JourneyNote } from '../core/models';
+import { categoryConfig, categoryLabel, ConsumptionEntry, FEELINGS, journeyStatusLabel, JourneyNote, NowWatching } from '../core/models';
+import {ReactionBar} from './reaction-bar';
+import { NEW_ENTRY_SESSION_KEY } from '../core/diary-export';
 
 @Component({
-  selector: 'app-entry-card', standalone: true, imports: [DatePipe, RouterLink],
+  selector: 'app-entry-card', standalone: true, imports: [DatePipe, RouterLink, ReactionBar],
   template: `
-    <article class="panel entry-card">
+    <article class="panel entry-card" [class.entry-created]="createdOnThisVisit()">
       <div class="entry-meta">
         <a class="author-link" [routerLink]="['/u', entry().authorId]">
           <span class="avatar avatar-small" aria-hidden="true">{{entry().author.displayName.slice(0, 1).toUpperCase()}}</span>
@@ -14,8 +16,9 @@ import { categoryLabel, ConsumptionEntry, FEELINGS, journeyStatusLabel, JourneyN
         </a>
         <time [attr.datetime]="entry().createdAt | date:'yyyy-MM-dd'">{{entry().createdAt | date:'dd/MM/yyyy'}}</time>
       </div>
+      @if (activeWatching(); as watching) {<p class="now-watching-badge"><span aria-hidden="true">▶</span> {{watching.title}} · {{config(watching.category).singular}}</p>}
       <div class="entry-body">
-        <span class="category-pill" [attr.data-category]="entry().category">{{label(entry().category)}}</span>
+        <span class="category-pill" [attr.data-category]="entry().category" [style.background]="config(entry().category).bgColor" [style.color]="config(entry().category).textColor"><span class="entry-category-icon" [class.entry-category-pulse]="createdOnThisVisit()" aria-hidden="true">{{config(entry().category).icon}}</span> {{label(entry().category)}}</span>
         <span class="journey-status">{{statusLabel(entry().status)}}</span>
         @if (entry().previousEntryId) {<span class="journey-status">Revisitando esta obra</span>}
         <h2>{{entry().title}}</h2>
@@ -39,6 +42,7 @@ import { categoryLabel, ConsumptionEntry, FEELINGS, journeyStatusLabel, JourneyN
         }
         @if (entry().notes?.length) {<details class="journey-notes"><summary>Durante o caminho · {{entry().notes?.length}} notas</summary><ol class="journey-timeline">@for (note of entry().notes; track note.id) {<li><time [attr.datetime]="note.createdAt | date:'yyyy-MM-ddTHH:mm:ss'">{{note.createdAt | date:'dd/MM/yyyy HH:mm'}}</time>@if (note.containsSpoilers) {<button class="button secondary small" type="button" (click)="toggleNote(note)" [attr.aria-expanded]="noteVisible(note)" [attr.aria-controls]="'journey-note-' + entry().id + '-' + note.id">{{noteVisible(note) ? 'Ocultar spoiler da nota' : 'Ler nota com spoiler'}}</button>}<div [id]="'journey-note-' + entry().id + '-' + note.id">@if (noteVisible(note)) {<p>{{note.text}}</p>}</div></li>}</ol></details>}
       </div>
+      <app-reaction-bar [entryId]="entry().id" [authorId]="entry().authorId" />
       @if (editable()) {
         <div class="entry-actions">
           <a class="button ghost" [routerLink]="['/entry', entry().id, 'edit']">{{entry().status === 'in_progress' || entry().status === 'paused' ? 'Continuar jornada' : 'Editar'}}</a>
@@ -48,9 +52,13 @@ import { categoryLabel, ConsumptionEntry, FEELINGS, journeyStatusLabel, JourneyN
       }
     </article>
   `,
+  styles: [`.entry-created{animation:entry-card-arrive 560ms ease-out both}.entry-category-pulse{display:inline-block}.entry-category-pulse.entry-category-pulse{animation:entry-category-pulse 560ms ease-out both}@keyframes entry-card-arrive{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}@keyframes entry-category-pulse{0%{transform:scale(.8)}45%{transform:scale(1.25)}100%{transform:scale(1)}}@media(prefers-reduced-motion:reduce){.entry-created,.entry-category-pulse.entry-category-pulse{animation:none}}`],
 })
-export class EntryCard {
+export class EntryCard implements OnInit {
   entry = input.required<ConsumptionEntry>();
+  createdOnThisVisit = signal(false);
+  nowWatching = input<NowWatching|null>(null);
+  activeWatching = computed(() => {const value=this.nowWatching();return value&&value.expiresAt>Date.now()?value:null;});
   editable = input(false);
   busy = input(false);
   private revealedText = signal('');
@@ -67,6 +75,15 @@ export class EntryCard {
   feelingLabel(value: string) {return FEELINGS.find(feeling => feeling.value === value)?.label ?? value;}
   remove = output<{entry: ConsumptionEntry; trigger: HTMLElement}>();
   requestRemove(event: MouseEvent) {this.remove.emit({entry: this.entry(), trigger: event.currentTarget as HTMLElement});}
+  config = categoryConfig;
   label = categoryLabel;
   statusLabel = journeyStatusLabel;
+  ngOnInit(): void {
+    try {
+      if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(NEW_ENTRY_SESSION_KEY) === this.entry().id) {
+        this.createdOnThisVisit.set(true);
+        sessionStorage.removeItem(NEW_ENTRY_SESSION_KEY);
+      }
+    } catch { /* Storage may be disabled; the card remains usable without animation. */ }
+  }
 }

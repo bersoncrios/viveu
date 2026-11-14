@@ -1,12 +1,15 @@
 /** Shared Firestore contracts. Dates are UTC Unix milliseconds in this MVP. */
 export const CATEGORIES = [
-  { value: 'filme', label: 'Filmes', singular: 'Filme', icon: '◉' },
-  { value: 'serie', label: 'Séries', singular: 'Série', icon: '▣' },
-  { value: 'livro', label: 'Livros', singular: 'Livro', icon: '▤' },
-  { value: 'jogo', label: 'Jogos', singular: 'Jogo', icon: '✦' },
-  { value: 'podcast', label: 'Podcasts', singular: 'Podcast', icon: '◌' },
-  { value: 'musica', label: 'Músicas', singular: 'Música', icon: '♫' },
+  { id: 'filme', value: 'filme', label: 'Filmes', singular: 'Filme', icon: '🎬', color: '#E05C5C', bgColor: '#F4DFCF', textColor: '#213C33' },
+  { id: 'serie', value: 'serie', label: 'Séries', singular: 'Série', icon: '📺', color: '#7B61FF', bgColor: '#E5DDF0', textColor: '#213C33' },
+  { id: 'livro', value: 'livro', label: 'Livros', singular: 'Livro', icon: '📚', color: '#4CAF82', bgColor: '#E9E7CE', textColor: '#213C33' },
+  { id: 'jogo', value: 'jogo', label: 'Jogos', singular: 'Jogo', icon: '🎮', color: '#FF9F43', bgColor: '#D9E8DE', textColor: '#213C33' },
+  { id: 'podcast', value: 'podcast', label: 'Podcasts', singular: 'Podcast', icon: '🎙️', color: '#54A0FF', bgColor: '#F0DFD8', textColor: '#213C33' },
+  { id: 'musica', value: 'musica', label: 'Músicas', singular: 'Música', icon: '🎵', color: '#FF6B9D', bgColor: '#DCE7EC', textColor: '#213C33' },
+  { id: 'outros', value: 'outros', label: 'Outros', singular: 'Outros', icon: '🎲', color: '#A0AEC0', bgColor: '#ECEFF3', textColor: '#213C33' },
 ] as const;
+export const CategoryConfig = CATEGORIES;
+export function categoryConfig(category: string) {return CATEGORIES.find(item => item.value === category) ?? CATEGORIES[6];}
 
 export type Category = (typeof CATEGORIES)[number]['value'];
 export type Rating = 1 | 2 | 3 | 4 | 5;
@@ -54,12 +57,21 @@ export function reflectionPrompt(category: Category | ''): string {
     jogo: 'Que desafio ou descoberta deste jogo marcou sua experiência?',
     podcast: 'Que ideia ou conversa deste podcast fez você pensar?',
     musica: 'Que lembrança ou sentimento esta música despertou em você?',
+    outros: 'O que esta experiência deixou em você?',
   };
   return category ? prompts[category] : 'O que esta experiência deixou em você?';
 }
 
 /** Public document: users/{uid}. Never persist email or OAuth credentials here. */
 export interface UserProfile {
+  theme?: 'light' | 'dark' | 'system';
+  onboardingCompleted?: boolean;
+  favoriteCategories?: Category[];
+  notificationPreferences?: {enabled: boolean; matchInQueue: boolean; reactions: boolean; streakReminder: boolean};
+  nowWatching?: NowWatching | null;
+  streakCount?: number;
+  lastActivityDate?: string;
+  badges?: string[];
   uid: string;
   displayName: string;
   bio: string;
@@ -67,6 +79,13 @@ export interface UserProfile {
   createdAt: number;
   updatedAt: number;
 }
+
+export interface ThematicList {id: string; ownerUid: string; title: string; description: string; category: Category | 'mixed'; items: ThematicListItem[]; isPublic: boolean; createdAt: number; updatedAt: number;}
+export interface ThematicListItem {title: string; note?: string;}
+export interface NowWatching {title: string; category: Category; since: number; expiresAt: number;}
+export interface EntryReaction {uid: string; emoji: '🔥'|'😮'|'❤️'|'🎯'; reactedAt: number;}
+export interface SharedMemory {id: string; participants: string[]; workTitle: string; workCategory: Category; messageCount: number; createdAt: number; updatedAt: number;}
+export interface SharedMemoryMessage {id: string; uid: string; text: string; createdAt: number; hasSpoiler: boolean;}
 
 /** Public document: entries/{id}. The id is supplied by the Firestore document. */
 export interface ConsumptionEntry {

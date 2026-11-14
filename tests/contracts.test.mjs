@@ -66,7 +66,8 @@ test('auth guard waits for restored session and preserves requested URL', async 
   const source = (await read('src/app/core/auth.guard.ts')).replace(/^import .*;\s*$/gm, '').replace('export const authGuard: CanActivateFn =', 'const authGuard =');
   let ready;
   let user = null;
-  const auth = {ready: new Promise(resolve => {ready = resolve;}), user: () => user};
+  let profile = null;
+  const auth = {ready: new Promise(resolve => {ready = resolve;}), user: () => user, profile: () => profile};
   const router = {createUrlTree: (commands, options) => ({commands, options})};
   const guard = new Function('inject', 'AuthService', 'Router', `${source}; return authGuard;`)(token => token === 'auth' ? auth : router, 'auth', 'router');
   let settled = false;
@@ -76,6 +77,11 @@ test('auth guard waits for restored session and preserves requested URL', async 
   ready();
   assert.deepEqual(await pending, {commands: ['/login'], options: {queryParams: {returnUrl: '/entry/new?queue=abc'}}});
   user = {uid: 'restored-user'};
+  assert.equal(await guard({}, {url: '/queue'}), true);
+  profile = {onboardingCompleted: false};
+  assert.deepEqual(await guard({}, {url: '/queue'}), {commands: ['/onboarding'], options: undefined});
+  assert.equal(await guard({}, {url: '/onboarding'}), true);
+  profile = {onboardingCompleted: true};
   assert.equal(await guard({}, {url: '/queue'}), true);
 });
 

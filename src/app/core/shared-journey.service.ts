@@ -1,5 +1,6 @@
 import { EnvironmentInjector, Injectable, inject, runInInjectionContext } from '@angular/core';
 import { DocumentData, Firestore, QueryDocumentSnapshot, Transaction, collection, doc, documentId, getDoc, getDocs, limit, orderBy, query, runTransaction, startAfter, where } from '@angular/fire/firestore';
+import { DataService } from './data.service';
 import { AuthService, validUid } from './auth.service';
 import { CATEGORIES, JOURNEY_STATUSES, JourneyStatus, MAX_JOURNEY_NOTES, REFLECTION_MAX_LENGTH } from './models';
 import { CreateSharedJourneyInput, FinishSharedJourneyInput, MAX_SHARED_MEMBERS, MAX_SHARED_MILESTONES, SHARED_PAGE_SIZE, SHARED_RULES_VERSION, SHARED_UNITS, SharedJourney, SharedMember, SharedMilestone, SharedPost, SharedPostInput } from './shared-models';
@@ -11,6 +12,7 @@ type SharedErrorCode = 'shared-validation' | 'shared-access' | 'shared-disabled'
 
 @Injectable({providedIn: 'root'})
 export class SharedJourneyService {
+  private readonly data = inject(DataService);
   private readonly db = inject(Firestore);
   private readonly auth = inject(AuthService);
   private readonly injector = inject(EnvironmentInjector);
@@ -262,5 +264,6 @@ export class SharedJourneyService {
         entryPublished: member.entryPublished || publishPublicly, updatedAt: this.version(member.updatedAt)});
       tx.update(this.groupRef(id), {updatedAt: this.version(group.updatedAt)});
     }, false, true);
+    await this.data.unlockTogetherBadge().catch(() => undefined);
   }
 }

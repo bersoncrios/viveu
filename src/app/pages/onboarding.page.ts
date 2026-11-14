@@ -1,0 +1,30 @@
+import { Component, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
+import { AuthService } from '../core/auth.service';
+import { DataService } from '../core/data.service';
+import { CATEGORIES, Category, Rating } from '../core/models';
+import { dataErrorMessage } from '../core/data-error';
+
+@Component({selector:'app-onboarding-page',standalone:true,imports:[FormsModule],template:`
+<main class="onboarding-wrap"><section class="panel onboarding-card" aria-live="polite">
+  <p class="eyebrow">PASSO {{step()}} DE 5</p><div class="onboarding-progress" role="progressbar" [attr.aria-valuenow]="step()" aria-valuemin="1" aria-valuemax="5"><span [style.width.%]="step()*20"></span></div>
+  @if(step()===1){<h1>Boas-vindas ao Viveu</h1><p>Um lugar para guardar as histórias que você viveu.</p><button class="button primary" (click)="next()">Começar</button>}
+  @if(step()===2){<h1>O que você gosta de viver?</h1><p>Escolha três categorias que fazem parte do seu repertório.</p><div class="onboarding-categories">@for(c of categories;track c.value){<button type="button" class="button" [class.primary]="favorites().includes(c.value)" [class.secondary]="!favorites().includes(c.value)" [attr.aria-pressed]="favorites().includes(c.value)" (click)="toggle(c.value)">{{c.icon}} {{c.label}}</button>}</div><p>{{favorites().length}} de 3 selecionadas</p><button class="button primary" [disabled]="favorites().length!==3" (click)="saveFavorites()">Continuar</button>}
+  @if(step()===3){<h1>Registre algo que acabou de consumir</h1><div class="field"><label for="onboard-title">Título</label><input id="onboard-title" [(ngModel)]="title" maxlength="160"></div><div class="field"><label for="onboard-category">Categoria</label><select id="onboard-category" [(ngModel)]="category"><option value="">Escolha</option>@for(c of categories;track c.value){<option [value]="c.value">{{c.icon}} {{c.singular}}</option>}</select></div><div class="field"><label for="onboard-rating">Nota</label><select id="onboard-rating" [(ngModel)]="rating"><option [ngValue]="null">Escolha</option>@for(n of ratings;track n){<option [ngValue]="n">{{n}} / 5</option>}</select></div><div class="field"><label for="onboard-quote">Frase (opcional)</label><textarea id="onboard-quote" [(ngModel)]="quote" maxlength="500" rows="2"></textarea></div><button class="button primary" [disabled]="busy()" (click)="saveEntry()">Salvar e continuar</button><button class="button ghost" (click)="next()">Pular por agora</button>}
+  @if(step()===4){<h1>O que vem depois?</h1><div class="field"><label for="onboard-queue">Uma obra para sua fila</label><input id="onboard-queue" [(ngModel)]="queueTitle" maxlength="160"></div><div class="field"><label for="onboard-queue-category">Categoria</label><select id="onboard-queue-category" [(ngModel)]="queueCategory"><option value="">Escolha</option>@for(c of categories;track c.value){<option [value]="c.value">{{c.icon}} {{c.singular}}</option>}</select></div><button class="button primary" [disabled]="busy()" (click)="saveQueue()">Adicionar e continuar</button><button class="button ghost" (click)="next()">Pular por agora</button>}
+  @if(step()===5){<h1>Seu diário cultural começa agora</h1><p>Seu espaço está pronto para guardar tudo o que ficou com você.</p><button class="button primary" [disabled]="busy()" (click)="finish()">Concluir</button>}
+  @if(error()){<p class="error" role="alert">{{error()}}</p>}
+</section></main>`,styles:[`.onboarding-wrap{max-width:680px;margin:4vh auto;padding:16px}.onboarding-card{min-height:420px}.onboarding-progress{height:8px;background:var(--primary-soft);border-radius:9px;margin:12px 0 32px;overflow:hidden}.onboarding-progress span{display:block;height:100%;background:var(--primary);transition:width .2s}.onboarding-categories{display:flex;gap:10px;flex-wrap:wrap;margin:24px 0}.field{display:grid;gap:8px;margin:18px 0}.field input,.field select,.field textarea{width:100%;padding:12px;border:1px solid var(--border);background:var(--surface);color:var(--ink);border-radius:8px}.onboarding-card>.button{margin:8px 8px 0 0}@media(prefers-reduced-motion:reduce){.onboarding-progress span{transition:none}}`]
+})
+export class OnboardingPage {
+  private auth=inject(AuthService);private data=inject(DataService);private router=inject(Router);
+  categories=CATEGORIES;ratings=[1,2,3,4,5];step=signal(1);favorites=signal<Category[]>([]);busy=signal(false);error=signal('');
+  title='';category:Category|''='';rating:Rating|null=null;quote='';queueTitle='';queueCategory:Category|''='';
+  toggle(value:Category){this.favorites.update(items=>items.includes(value)?items.filter(item=>item!==value):items.length<3?[...items,value]:items);}
+  next(){this.step.update(value=>Math.min(5,value+1));}
+  async saveFavorites(){this.busy.set(true);this.error.set('');try{await this.data.completeOnboarding(this.favorites());this.next();}catch(e){this.error.set(dataErrorMessage(e,'Não foi possível salvar suas preferências.'));}finally{this.busy.set(false);}}
+  async saveEntry(){if(!this.title.trim()||!this.category||!this.rating){this.error.set('Preencha título, categoria e nota.');return;}this.busy.set(true);this.error.set('');try{await this.data.saveEntry({title:this.title.trim(),category:this.category,rating:this.rating,quote:this.quote.trim(),status:'completed'});this.next();}catch(e){this.error.set(dataErrorMessage(e,'Não foi possível guardar a experiência.'));}finally{this.busy.set(false);}}
+  async saveQueue(){if(!this.queueTitle.trim()||!this.queueCategory){this.error.set('Preencha título e categoria.');return;}this.busy.set(true);this.error.set('');try{await this.data.addQueue(this.queueTitle.trim(),this.queueCategory);this.next();}catch(e){this.error.set(dataErrorMessage(e,'Não foi possível adicionar à fila.'));}finally{this.busy.set(false);}}
+  async finish(){this.busy.set(true);try{await this.data.completeOnboarding(this.favorites());await this.router.navigateByUrl('/feed');}catch(e){this.error.set(dataErrorMessage(e,'Não foi possível concluir seu começo no Viveu.'));}finally{this.busy.set(false);}}
+}

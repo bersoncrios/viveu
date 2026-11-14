@@ -6,7 +6,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AuthService } from '../core/auth.service';
 import { Cursor, DataService } from '../core/data.service';
 import { dataErrorMessage } from '../core/data-error';
-import { JourneyStatus, Rating, UserProfile, categoryLabel, journeyStatusLabel } from '../core/models';
+import { CATEGORIES, JourneyStatus, Rating, UserProfile, categoryLabel, journeyStatusLabel } from '../core/models';
 import { SharedJourneyService } from '../core/shared-journey.service';
 import { MAX_SHARED_MEMBERS, SharedJourney, SharedMember, SharedMilestone, SharedPost, SharedPostKind, sharedPostHidden, sharedUnitLabel } from '../core/shared-models';
 
@@ -20,7 +20,7 @@ import { MAX_SHARED_MEMBERS, SharedJourney, SharedMember, SharedMilestone, Share
     @if (loading() && !group() && !disabled()) {<p class="loading-state" role="status">Abrindo a jornada…</p>}
     @if (departed()) {<section class="panel empty"><h1>{{departed()}}</h1><a class="button secondary" routerLink="/together">Voltar às minhas jornadas</a></section>}
     @else if (group(); as journey) {
-      <header class="shared-hero panel"><div class="button-row"><span class="category-pill" [attr.data-category]="journey.category">{{category(journey.category)}}</span><span class="journey-status">{{journey.pace === 'free' ? 'Cada um no seu tempo' : 'Marcos combinados'}}</span>@if (journey.archived) {<span class="journey-status">Arquivada</span>}</div><h1>{{journey.title}}</h1>@if (journey.description) {<p>{{journey.description}}</p>}<p class="field-help">Um convite de {{journey.ownerName}} · {{journey.memberIds.length}} {{journey.memberIds.length === 1 ? 'participante' : 'participantes'}}</p></header>
+      <header class="shared-hero panel"><div class="button-row"><span class="category-pill" [attr.data-category]="journey.category">{{categoryConfig(journey.category)?.icon}} {{category(journey.category)}}</span><span class="journey-status">{{journey.pace === 'free' ? 'Cada um no seu tempo' : 'Marcos combinados'}}</span>@if (journey.archived) {<span class="journey-status">Arquivada</span>}</div><h1>{{journey.title}}</h1>@if (journey.description) {<p>{{journey.description}}</p>}<p class="field-help">Um convite de {{journey.ownerName}} · {{journey.memberIds.length}} {{journey.memberIds.length === 1 ? 'participante' : 'participantes'}}</p></header>
       @if (me()?.state === 'invited') {<section class="panel shared-invitation"><h2>Tem lugar para o seu olhar.</h2><p>Ao aceitar, você entra no grupo e pode ler e compartilhar impressões com os participantes. Nada do mural vai para o seu perfil sem você escolher publicar.</p>@if (journey.archived) {<p class="notice">Este grupo foi arquivado. O convite não pode mais ser aceito; você pode recusá-lo para removê-lo da sua lista.</p>}<div class="button-row"><button class="button primary" type="button" [disabled]="busy() || journey.archived" (click)="respond(true)">Aceitar e começar</button><button class="button secondary" type="button" [disabled]="busy()" (click)="respond(false)">Agora não</button></div></section>}
       @else if (me()?.state === 'active') {
         <div class="shared-toolbar"><span class="field-help">Mural restrito a quem aceitou o convite.</span><div class="button-row"><button class="button ghost" type="button" [disabled]="loading() || busy()" (click)="load(id)">Atualizar</button>@if (owner() && !journey.archived) {<button class="button ghost" type="button" [disabled]="busy()" (click)="confirmation.set('archive')">Arquivar grupo</button>} @else if (!owner()) {<button class="button ghost" type="button" [disabled]="busy()" (click)="confirmation.set('leave')">Sair da jornada</button>}</div></div>
@@ -61,6 +61,7 @@ export class TogetherDetailPage {
   friendName = ''; finding = signal(false); people = signal<UserProfile[]>([]); peopleError = signal(''); peopleSearched = signal(false); morePeople = signal(false);
   private peopleCursor: Cursor = null; private searchedName = ''; private peopleRevision = 0; private revision = 0; private populatedId = '';
   private revealedPosts = signal<string[]>([]); private revealedReflections = signal<string[]>([]);
+  categoryConfig(value: string) {return CATEGORIES.find(item => item.value === value);}
   maxMembers = MAX_SHARED_MEMBERS; category = categoryLabel; statusLabel = journeyStatusLabel; unitLabel = sharedUnitLabel;
   constructor() {this.route.paramMap.pipe(takeUntilDestroyed(inject(DestroyRef))).subscribe(params => {void this.load(params.get('id') ?? '');});}
   owner() {return this.group()?.ownerId === this.auth.user()?.uid;}

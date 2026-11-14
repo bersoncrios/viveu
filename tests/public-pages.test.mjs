@@ -13,7 +13,7 @@ async function load(path, modules) {
   new Function('require', 'exports', 'document', compiled)(name => {
     assert.ok(name in modules, `Unexpected import: ${name}`);
     return modules[name];
-  }, exports, {querySelector: () => ({focus() {}})});
+  }, exports, {documentElement:{dataset:{}}, querySelector: () => ({focus() {}})});
   return exports;
 }
 function signal(value) {
@@ -31,9 +31,11 @@ function deferred() {
 async function shell(url = '/') {
   const events = new Subject();
   class NavigationEnd {constructor(urlAfterRedirects) {this.urlAfterRedirects = urlAfterRedirects;}}
-  const dependencies = {auth: {}, router: {url, events}};
+  const dependencies = {auth: {profile: signal(null), user: signal(null)}, router: {url, events}, document:{documentElement:{dataset:{}},querySelector:()=>({focus(){}})}};
   const exports = await load('src/app/app.component.ts', {
-    '@angular/core': {Component: component, signal, inject: token => dependencies[token]},
+    '@angular/core': {Component: component, signal, effect: fn => fn(), inject: token => dependencies[token]},
+    '@angular/common': {DOCUMENT:'document'},
+    './pages/global-search': {GlobalSearch: class {}}, './pages/quick-entry': {QuickEntry: class {}},
     '@angular/router': {Router: 'router', NavigationEnd},
     'rxjs': {filter},
     '@angular/core/rxjs-interop': {takeUntilDestroyed: () => stream => stream},
@@ -50,7 +52,9 @@ async function loginHarness({returnUrl, login = async () => {}, navigate} = {}) 
     router: {navigateByUrl: async destination => {destinations.push(destination); return navigate ? navigate(destination) : true;}},
   };
   const {LoginPage} = await load('src/app/pages/login.page.ts', {
-    '@angular/core': {Component: component, signal, inject: token => dependencies[token]},
+    '@angular/core': {Component: component, signal, effect: fn => fn(), inject: token => dependencies[token]},
+    '@angular/common': {DOCUMENT:'document'},
+    './pages/global-search': {GlobalSearch: class {}}, './pages/quick-entry': {QuickEntry: class {}},
     '@angular/router': {ActivatedRoute: 'route', Router: 'router'},
     '../core/auth.service': {AuthService: 'auth', errorMessage: error => `Falha: ${error.message}`},
     './journey-preview': {},

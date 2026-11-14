@@ -77,7 +77,8 @@ function fixture(extra = {}, initialUid = 'owner') {
   };
   const cache = {};
   const modules = {
-    '@angular/core': {Injectable: () => value => value, inject: token => token === 'db' ? db : token === 'auth' ? {requireUser: () => {
+    './data.service': {DataService: 'data'},
+    '@angular/core': {Injectable: () => value => value, inject: token => token === 'data' ? {unlockTogetherBadge: async () => {}} : token === 'db' ? db : token === 'auth' ? {requireUser: () => {
       if (!uid) throw new Error('logged out'); return {uid};
     }} : {}, runInInjectionContext: (_injector, work) => work()},
     '@angular/fire/firestore': firestore,

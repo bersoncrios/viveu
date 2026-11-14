@@ -34,7 +34,7 @@ async function serviceHarness({docs = [], user = {uid: 'me'}, failure} = {}) {
     '@angular/core': {Injectable: decorate, inject: token => token === 'auth' ? auth : {}, runInInjectionContext: (_ctx, work) => work()},
     '@angular/fire/firestore': {...sdk, Firestore: 'db', documentId: () => '__name__', query: (...args) => args,
       getDocs: async query => {queries.push(query); if (failure) throw failure; return {docs, size: docs.length};}},
-    './auth.service': {AuthService: 'auth'}, './models': {PAGE_SIZE: 20},
+    './auth.service': {AuthService: 'auth'}, './models': {PAGE_SIZE: 20}, './engagement': {},
   });
   return {service: new DataService(), queries};
 }
@@ -84,9 +84,10 @@ async function pageHarness(searchProfiles) {
   const data = {searchProfiles, following: async () => [{uid: 'ana'}], getProfile: async () => ({displayName: 'Ana'}), feedPage: async () => ({items: [], cursor: null, hasMore: false})};
   const auth = {ready: Promise.resolve()};
   const {FeedPage} = await load('src/app/pages/feed.page.ts', {
-    '@angular/core': {Component: decorate, signal, inject: token => token === 'auth' ? auth : data},
+    '@angular/core': {Component: decorate, signal, computed: fn => fn, inject: token => token === 'auth' ? auth : data},
     '@angular/forms': {}, '@angular/router': {}, '../core/auth.service': {AuthService: 'auth'},
     '../core/data.service': {DataService: 'data', MAX_FOLLOWING: 30}, '../core/models': {}, './entry-card': {}, './active-journeys': {},
+    '../core/discovery': {normalizeTitle: value => value.trim().toLowerCase()}, './engagement-panel': {}, './retention-panels': {}, './shared-memory-suggestions': {}, '../shared/skeleton-card': {},
     '../core/data-error': {dataErrorMessage: (_err, fallback) => fallback},
   });
   const page = new FeedPage();

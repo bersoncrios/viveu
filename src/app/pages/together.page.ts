@@ -37,7 +37,7 @@ import { MAX_SHARED_MEMBERS, SHARED_UNITS, SharedJourney, SharedPace, SharedUnit
     }
     @if (loading() && !items().length) {<p class="loading-state" role="status">Buscando suas companhias…</p>}
     @if (!loading() && !disabled() && !error() && !items().length) {<section class="panel empty"><img src="/viveu-symbol.svg" width="44" height="44" alt=""><h2>Tem uma história que merece companhia?</h2><p>Comece uma jornada, encontre amigos pelo nome e convide quem você quer por perto.</p><button class="button primary" type="button" (click)="openCreate()">Criar minha primeira jornada</button></section>}
-    <div class="shared-journey-grid">@for (item of items(); track item.id) {<a class="panel shared-journey-card" [routerLink]="['/together', item.id]"><div class="button-row"><span class="category-pill" [attr.data-category]="item.category">{{label(item.category)}}</span>@if (invited(item)) {<span class="shared-invite-badge">Convite para você</span>} @else if (item.archived) {<span class="journey-status">Arquivada</span>}</div><h2>{{item.title}}</h2><p>{{item.description || 'Uma história para viver e conversar.'}}</p><span class="field-help">{{item.memberIds.length}} {{item.memberIds.length === 1 ? 'participante' : 'participantes'}} · {{item.pace === 'free' ? 'Cada um no seu tempo' : 'Com marcos combinados'}}</span><span class="shared-card-link">{{invited(item) ? 'Ver convite de ' + item.ownerName : 'Abrir jornada'}} →</span></a>}</div>
+    <div class="shared-journey-grid">@for (item of items(); track item.id) {<a class="panel shared-journey-card" [routerLink]="['/together', item.id]"><div class="button-row"><span class="category-pill" [attr.data-category]="item.category">{{categoryConfig(item.category)?.icon}} {{label(item.category)}}</span>@if (invited(item)) {<span class="shared-invite-badge">Convite para você</span>} @else if (item.archived) {<span class="journey-status">Arquivada</span>}</div><h2>{{item.title}}</h2><p>{{item.description || 'Uma história para viver e conversar.'}}</p><span class="field-help">{{item.memberIds.length}} {{item.memberIds.length === 1 ? 'participante' : 'participantes'}} · {{item.pace === 'free' ? 'Cada um no seu tempo' : 'Com marcos combinados'}}</span><span class="shared-card-link">{{invited(item) ? 'Ver convite de ' + item.ownerName : 'Abrir jornada'}} →</span></a>}</div>
     @if (hasMore()) {<div class="load-more"><button class="button secondary" type="button" [disabled]="loading()" (click)="load()">{{loading() ? 'Carregando…' : 'Mais jornadas'}}</button></div>}
   `,
   styleUrl: './together.css',
@@ -50,6 +50,7 @@ export class TogetherPage {
   friends = signal<UserProfile[]>([]); friendsLoading = signal(false); friendsError = signal(''); selectedFriendIds = signal<string[]>([]); creationNotice = signal('');
   readonly maxInitialInvites = MAX_SHARED_MEMBERS - 1; private friendsLoaded = false;
   title = ''; category: Category | '' = ''; description = ''; pace: SharedPace = 'free'; unit: SharedUnit = 'capitulo';
+  categoryConfig(value: string) {return CATEGORIES.find(item => item.value === value);}
   categories = CATEGORIES; units = SHARED_UNITS; label = categoryLabel; private cursor: Cursor = null;
   fromQueue = this.route.snapshot.queryParamMap.get('queue');
   constructor() {void this.initialize();}

@@ -106,6 +106,7 @@ export class AuthService {
         displayName: (initialName.length >= 2 ? initialName : 'Pessoa Viveu').slice(0, 60),
         bio: '',
         photoURL: user.photoURL || '',
+        onboardingCompleted: false,
         createdAt: now,
         updatedAt: now,
       };
@@ -128,5 +129,14 @@ export class AuthService {
     if (this.user()?.uid === user.uid) {
       this.profile.set({ ...current, ...patch });
     }
+  }
+
+  async updateTheme(theme: NonNullable<UserProfile['theme']>): Promise<void> {
+    if (!['light', 'dark', 'system'].includes(theme)) throw new Error('Escolha um tema válido.');
+    const user = this.requireUser();
+    const current = this.profile() ?? await this.ensureProfile(user);
+    const patch = {theme, updatedAt: Date.now()};
+    await this.run(() => updateDoc(doc(this.db, 'users', user.uid), patch));
+    if (this.user()?.uid === user.uid) this.profile.set({...current, ...patch});
   }
 }

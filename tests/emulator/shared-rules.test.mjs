@@ -105,8 +105,9 @@ for (const name of ['models', 'shared-models', 'shared-journey.service']) {
 function realService(person) {
   const db = dbFor(person), cache = {};
   const modules = {
+    './data.service': {DataService: 'data'},
     '@angular/core': {Injectable: () => value => value,
-      inject: token => token === 'db' ? db : token === 'auth' ? {requireUser: () => ({uid: person})} : {},
+      inject: token => token === 'data' ? {unlockTogetherBadge: async () => {}} : token === 'db' ? db : token === 'auth' ? {requireUser: () => ({uid: person})} : {},
       runInInjectionContext: (_context, work) => work()},
     '@angular/fire/firestore': {...firestoreSdk, Firestore: 'db'},
     './auth.service': {AuthService: 'auth', validUid: value => typeof value === 'string' && value.length > 0 && value.length <= 128 && !value.includes('/') && !['.', '..'].includes(value)},
@@ -532,4 +533,54 @@ test('the real service lets an invited person decline an archived group while bl
   assert.equal((await guest.membership(id)).state, 'declined');
   assert.equal((await guest.list()).items.length, 0);
   assert.deepEqual((await owner.get(id)).audienceIds, ['owner']);
+});
+
+test('profile visit receipts require the authenticated visitor and cannot edit another profile', async () => {
+  await adminSeed('users/owner', {uid: 'owner', createdAt: 1});
+  const visitor = dbFor('friend');
+  await setDoc(doc(visitor, 'users/owner/visits/friend'), {visitorId: 'friend', createdAt: 100});
+  await denied(setDoc(doc(visitor, 'users/owner/visits/someone'), {visitorId: 'someone', createdAt: 100}));
+  await denied(updateDoc(doc(visitor, 'users/owner'), {badges: ['public-profile']}));
+  await denied(updateDoc(doc(visitor, 'users/owner/visits/friend'), {createdAt: 200}));
+  await denied(setDoc(doc(dbFor('owner'), 'users/owner/visits/owner'), {visitorId: 'owner', createdAt: 100}));
+  assert.equal((await getDocs(collection(dbFor('owner'), 'users/owner/visits'))).size, 1);
+});
+
+test('activity calendar is private, owner writable and validates date keys', async () => {
+  const owner = dbFor('owner');
+  await setDoc(doc(owner, 'users/owner/activityDays/2026-11-13'), {date: '2026-11-13', createdAt: 100});
+  await denied(getDocs(collection(dbFor('friend'), 'users/owner/activityDays')));
+  await denied(setDoc(doc(dbFor('friend'), 'users/owner/activityDays/2026-11-14'), {date: '2026-11-14', createdAt: 100}));
+  await denied(setDoc(doc(owner, 'users/owner/activityDays/invalid'), {date: 'invalid', createdAt: 100}));
+  await denied(setDoc(doc(owner, 'users/owner/activityDays/2026-11-14'), {date: '2026-11-13', createdAt: 100}));
+});
+
+test('engagement profile fields validate their shape and preserve legacy profiles', async () => {
+  const db = dbFor('owner');
+  await setDoc(doc(db, 'users/owner'), {uid: 'owner', createdAt: 1});
+  await updateDoc(doc(db, 'users/owner'), {streakCount: 7, lastActivityDate: '2026-11-13', badges: ['first-entry']});
+  await denied(updateDoc(doc(db, 'users/owner'), {streakCount: -1}));
+  await denied(updateDoc(doc(db, 'users/owner'), {lastActivityDate: 'yesterday'}));
+  await denied(updateDoc(doc(db, 'users/owner'), {badges: ['unknown']}));
+  await denied(updateDoc(doc(db, 'users/owner'), {badges: ['first-entry', 'first-entry']}));
+});
+
+test('shared memory is limited to its two participants and messages require atomic count increments', async () => {
+  const owner=dbFor('owner'), guest=dbFor('guest'), stranger=dbFor('stranger');
+  const memory=doc(owner,'sharedMemories/memory-one');
+  await setDoc(memory,{participants:['owner','guest'],workTitle:'Um livro',workCategory:'livro',messageCount:0,createdAt:100,updatedAt:100});
+  await denied(getDoc(doc(stranger,'sharedMemories/memory-one')));
+  await denied(setDoc(doc(stranger,'sharedMemories/memory-one/messages/x'),{uid:'stranger',text:'Oi',hasSpoiler:false,createdAt:101}));
+  await denied(setDoc(doc(owner,'sharedMemories/memory-one/messages/orphan'),{uid:'owner',text:'Sem transação',hasSpoiler:false,createdAt:101}));
+  await runTransaction(owner,async tx=>{tx.update(memory,{messageCount:1,updatedAt:101});tx.set(doc(owner,'sharedMemories/memory-one/messages/first'),{uid:'owner',text:'Uma boa leitura.',hasSpoiler:false,createdAt:101});});
+  assert.equal((await getDoc(memory)).data().messageCount,1);
+  await denied(setDoc(doc(guest,'sharedMemories/memory-one/messages/long'),{uid:'guest',text:'x'.repeat(501),hasSpoiler:false,createdAt:102}));
+  await denied(updateDoc(memory,{messageCount:2,updatedAt:102,workTitle:'Alterado'}));
+  await denied(setDoc(doc(owner,'sharedMemories/memory-two'),{participants:['owner','owner'],workTitle:'Duplicados',workCategory:'livro',messageCount:0,createdAt:100,updatedAt:100}));
+});
+
+test('shared memory participants cannot exceed 100 messages', async () => {
+  const db=dbFor('owner'), memory=doc(db,'sharedMemories/memory-limit');
+  await adminSeed('sharedMemories/memory-limit',{participants:['owner','guest'],workTitle:'Uma história',workCategory:'livro',messageCount:100,createdAt:100,updatedAt:100});
+  await denied(runTransaction(db,async tx=>{tx.update(memory,{messageCount:101,updatedAt:101});tx.set(doc(db,'sharedMemories/memory-limit/messages/last'),{uid:'owner',text:'Mais uma',hasSpoiler:false,createdAt:101});}));
 });

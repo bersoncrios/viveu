@@ -95,3 +95,25 @@ Sem essas evidências, o status é “contrato pronto; integração remota não 
 `AuthService`: signals `user`, `profile`, `error`; `ready: Promise<void>`; `login()`, `logout()`, `updateProfile({displayName,bio})`, `requireUser()`. Inicialização sempre resolve `ready` após sucesso ou falha de carga do perfil, e a falha fica em `error`.
 
 `DataService`: `getProfile(uid)`, `getEntry(id)`, `entriesPage(uid,cursor?)`, `feedPage(uids,cursor?)`, `saveEntry(input,id?,queueId?)`, `deleteEntry(id)`, `queue()`, `addQueue(title,category)`, `removeQueue(id)`, `moveQueue(items,index,delta)`, `following()`, `follow(uid)`, `unfollow(uid)`. `EntryPage` contém `items`, `cursor`, `hasMore`; o cursor deve permanecer em memória e não ser serializado em URL. `errorMessage(error)` exportado pelo serviço de autenticação converte erros conhecidos em microtexto. Serviços usam AngularFire modular real, não adaptadores fictícios. Compilação e integração dependem da disponibilidade do pacote AngularFire.
+
+## Engajamento diário (HML, sem publicação automática)
+
+`users/{uid}` recebe campos opcionais e retrocompatíveis: `streakCount` (inteiro),
+`lastActivityDate` (ISO local `YYYY-MM-DD`, timezone do browser), `badges` (IDs permanentes).
+O frontend recalcula após salvar registros e adicionar à fila; conquistas nunca são removidas.
+`users/{uid}/activityDays/{YYYY-MM-DD}` preserva um timestamp de atividade por dia,
+inclusive quando uma obra sai da fila ou é editada. Dados anteriores ao lançamento são
+reconstruídos de createdAt/updatedAt/notas; datas intermediárias de edições antigas não
+podem ser recuperadas. Todas as regras desta coleção exigem o proprietário.
+
+`users/{uid}/visits/{visitorUid}` é um recibo imutável, criado somente pelo visitante
+logado (diferente do dono), com visitorId e createdAt. Apenas dono e visitante leem.
+O dono consolida `public-profile` no próximo cálculo; nenhum visitante escreve no
+perfil de terceiros. Conclusão de jornada compartilhada concede `first-together`.
+
+A fila mantém o contrato existente `users/{uid}/queue/{item}`: nenhuma migração para
+`queue/{uid}/items`. Memórias usam authorId + createdAt descendente + __name__, com
+três ranges exclusivos no final, de sete dias locais cada. O índice existente atende
+memórias e wrapped; nenhum índice novo é necessário. Queries são paginadas sem truncar.
+Wrapped deve considerar completedAt (fallback createdAt), por isso o cálculo recebe o
+histórico completo. Sem Cloud Functions. Regras e índices ficam locais até ativação HML.

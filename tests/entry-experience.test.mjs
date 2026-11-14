@@ -39,6 +39,8 @@ async function cardFor(entry) {
     '@angular/common': {DatePipe: class {}},
     '@angular/router': {RouterLink: class {}},
     '../core/models': models,
+    '../core/diary-export': {NEW_ENTRY_SESSION_KEY: 'viveu-new-entry-id'},
+    './reaction-bar': {ReactionBar: class {}},
   });
   const card = new EntryCard();
   card.entry.set(entry);
@@ -73,6 +75,7 @@ async function pageFor({entry, editId = entry?.id, queueId, query = {}, queued =
     '../core/data.service': {DataService: 'data'},
     '../core/data-error': dataErrors,
     '../core/models': models,
+    '../core/diary-export': {NEW_ENTRY_SESSION_KEY: 'viveu-new-entry-id'},
   });
   const page = new EntryPage();
   // Let the constructor's real asynchronous initialize() finish.

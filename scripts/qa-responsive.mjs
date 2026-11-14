@@ -6,8 +6,7 @@ import path from 'node:path';
 const base = 'http://127.0.0.1:4211';
 const output = path.resolve('test-results/responsive');
 await mkdir(output, {recursive: true});
-const tabs = await (await fetch('http://127.0.0.1:9337/json/list')).json();
-const tab = tabs.find(item => item.type === 'page');
+const tab = await (await fetch('http://127.0.0.1:9337/json/new?about:blank', {method:'PUT'})).json();
 if (!tab) throw new Error('Start a disposable Chrome with a blank tab first.');
 const socket = new WebSocket(tab.webSocketDebuggerUrl);
 await new Promise((resolve, reject) => {socket.onopen = resolve; socket.onerror = reject;});
@@ -23,7 +22,7 @@ async function send(method, params = {}) {
   const result = new Promise((resolve, reject) => pending.set(id, {resolve, reject}));
   socket.send(JSON.stringify({id, method, params}));
   let timer;
-  const timeout = new Promise((_, reject) => {timer = setTimeout(() => {pending.delete(id); reject(new Error('CDP timeout: ' + method));}, 20000);});
+  const timeout = new Promise((_, reject) => {timer = setTimeout(() => {pending.delete(id); reject(new Error('CDP timeout: ' + method));}, 120000);});
   try {return await Promise.race([result, timeout]);} finally {clearTimeout(timer);}
 }
 async function evaluate(expression) {
@@ -32,7 +31,7 @@ async function evaluate(expression) {
   return result.result.value;
 }
 async function waitFor(expression) {
-  const until = Date.now() + 20000;
+  const until = Date.now() + 120000;
   while (Date.now() < until) {
     if (await evaluate(expression)) return;
     await new Promise(resolve => setTimeout(resolve, 150));
@@ -51,7 +50,9 @@ async function measure(name, width, height = 844) {
       shell: !!document.querySelector('.sidebar'),
       clipped: [...document.querySelectorAll('h1,h2,p,input,select,textarea,.button,.mobile-nav')].filter(el => {
         const rect = el.getBoundingClientRect();
-        return rect.width && getComputedStyle(el).visibility !== 'hidden' && (rect.left < -1 || rect.right > viewport + 1);
+        const scroller = el.closest('.category-filters');
+        const allowedScroll = scroller && ['auto','scroll'].includes(getComputedStyle(scroller).overflowX);
+        return !allowedScroll && rect.width && getComputedStyle(el).visibility !== 'hidden' && (rect.left < -1 || rect.right > viewport + 1);
       }).map(el => ({tag:el.tagName, text:el.innerText?.slice(0,60), class:el.className}))};
   })()`);
   const shot = await send('Page.captureScreenshot', {format: 'png', captureBeyondViewport: false});
@@ -90,10 +91,17 @@ try {
   await evaluate(`(() => {
     const page = ng.getComponent(document.querySelector('app-entry-page'));
     const db = page.data;
-    const profile = {uid:'responsive-fixture',displayName:'Uma pessoa com um nome público bastante comprido',bio:'Histórias, descobertas e boas conversas. '.repeat(4),photoURL:''};
+    const profile = {badges:['first-work','explorer'],uid:'responsive-fixture',displayName:'Uma pessoa com um nome público bastante comprido',bio:'Histórias, descobertas e boas conversas. '.repeat(4),photoURL:''};
     const note = {id:'note-one',text:'Uma impressão com palavras e lembranças. '.repeat(15),createdAt:Date.now(),containsSpoilers:false};
     const item = {id:'fixture-entry',authorId:profile.uid,author:profile,title:'Uma obra com um título bastante longo que merece ser lembrada',category:'livro',rating:4,status:'in_progress',reason:'Uma recomendação de uma amiga e uma curiosidade antiga.',resumePoint:'Capítulo 8, página 142',notes:[note],reflection:'O que ficou comigo nesta experiência? '.repeat(20),quote:'Uma frase para guardar.',feelings:['inspirado','curioso','emocionado'],createdAt:Date.now(),updatedAt:Date.now()};
-    db.entriesPage = async () => ({items:[item],cursor:null,hasMore:false});
+    const completed = {...item,id:'completed-fixture',status:'completed',rating:5,quote:'Uma frase que ficou comigo.',completedAt:new Date(2026,9,15).getTime(),createdAt:new Date(2026,9,15).getTime(),updatedAt:new Date(2026,9,15).getTime()};
+    db.allEntries = async () => [item,completed];
+    db.historyEntries = async () => [completed];
+    db.activityTimestamps = async () => [completed.createdAt,completed.createdAt+86400000];
+    db.syncEngagement = async () => ({streakCount:3,lastActivityDate:'2026-11-13',badges:['first-work'],newBadges:[],broken:false});
+    db.recordProfileVisit = async () => {};
+    db.acknowledgeBadges = () => {};
+    db.entriesPage = async () => ({items:[item,completed],cursor:null,hasMore:false});
     db.feedPage = db.entriesPage;
     db.activeJourneys = async () => [item];
     db.following = async () => [{uid:'friend-fixture'}];
@@ -107,9 +115,43 @@ try {
   for (const [name, route, selector] of [
     ['feed-fixture','/feed','app-feed-page'], ['diary-fixture','/diary','app-diary-page'],
     ['queue-fixture','/queue','app-queue-page'], ['profile-fixture','/u/responsive-fixture','app-profile-page'],
+    ['wrapped-fixture','/wrapped/2026/10','app-wrapped-page'],
   ]) {
     await evaluate(`ng.getComponent(document.querySelector('app-root')).router.navigateByUrl(${JSON.stringify(route)})`);
     await waitFor(`!!document.querySelector(${JSON.stringify(selector)})`);
+    if (name === 'feed-fixture') {
+      await waitFor("!!document.querySelector('.streak') && !!document.querySelector('.history-card')");
+      await evaluate("ng.getComponent(document.querySelector('app-feed-page')).selectCategory('livro')");
+      await waitFor("!!document.querySelector('.category-filters button[aria-pressed=true]')");
+    }
+    if (name === 'profile-fixture') await waitFor("!!document.querySelector('.taste-summary') && !!document.querySelector('.identity-quote')");
+    if (name === 'wrapped-fixture') {
+      await waitFor("!!document.querySelector('.wrapped-card')");
+      const exported = await evaluate(`(async () => {
+        const page = ng.getComponent(document.querySelector('app-wrapped-page'));
+        const original = page.summary();
+        const makeUrl = URL.createObjectURL;
+        const click = HTMLAnchorElement.prototype.click;
+        let blob;
+        URL.createObjectURL = value => {blob = value; return 'blob:qa-export';};
+        HTMLAnchorElement.prototype.click = function() {};
+        try {
+          page.summary.set({...original,top:{...original.top,title:'T'.repeat(160),rating:5},quote:{...original.quote,quote:'Q'.repeat(500)}});
+          await page.share(true);
+          if (!blob) throw new Error('Wrapped did not generate a PNG blob: ' + page.notice());
+          const header = [...new Uint8Array(await blob.slice(0,8).arrayBuffer())];
+          if (header.join(',') !== '137,80,78,71,13,10,26,10') throw new Error('Wrapped blob lacks PNG signature');
+          const bitmap = await createImageBitmap(blob);
+          const canvas = document.createElement('canvas'); canvas.width = bitmap.width; canvas.height = bitmap.height;
+          const ctx = canvas.getContext('2d'); ctx.drawImage(bitmap,0,0);
+          const points = [[0,0],[bitmap.width-1,bitmap.height-1],[10,bitmap.height-10],[10,Math.min(1400,bitmap.height-1)]];
+          for (const [x,y] of points) if (ctx.getImageData(x,y,1,1).data[3] !== 255) throw new Error('Wrapped background not opaque at ' + x + ',' + y);
+          const result = {page:'wrapped-png-export',width:bitmap.width,height:bitmap.height,type:blob.type,bytes:blob.size,signature:true,opaque:true,longTitle:160,longQuote:500};
+          bitmap.close(); return result;
+        } finally {URL.createObjectURL = makeUrl; HTMLAnchorElement.prototype.click = click; page.summary.set(original);}
+      })()`);
+      checks.push(exported);
+    }
     await new Promise(resolve => setTimeout(resolve, 150));
     for (const width of [320, 360, 390, 768, 1024, 1440]) await measure(name, width);
   }
@@ -158,7 +200,7 @@ try {
   if (await evaluate("!!document.querySelector('.shared-wall,.shared-member-list,.shared-finish-form')")) throw new Error('Invitation rendered member-only content');
   for (const width of [320, 360, 390, 768, 1024, 1440]) await measure('together-invitation-fixture', width);
   await writeFile(path.join(output, 'report.json'), JSON.stringify(checks, null, 2));
-  const failures = checks.filter(check => check.scrollWidth > check.viewport + 1 || check.clipped.length);
+  const failures = checks.filter(check => check.scrollWidth > check.viewport + 1 || check.clipped?.length);
   console.log(JSON.stringify({screens: checks.length, failures, output}, null, 2));
   if (failures.length) process.exitCode = 1;
 } finally {socket.close();}

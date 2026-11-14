@@ -11,3 +11,4 @@
 
 /* Readability and touch targets for actionable and privacy information. */.entry-meta time{font-size:12px}.queue-actions .button{min-height:44px;font-size:12px}.following-list a{min-height:44px;display:flex;align-items:center}
 @media(max-width:767px){.mobile-header{gap:8px}.mobile-header .brand{font-size:23px;gap:6px}.mobile-header .actions{gap:4px;flex-wrap:nowrap}.mobile-header .button{padding:9px 8px;min-height:44px}.mobile-header .actions .ghost{min-width:44px}.queue-actions .button{font-size:12px;min-height:44px}.profile-topline>.button{font-size:12px;min-height:44px}.entry-meta time{font-size:12px}}
+.compatibility-card{margin:24px 0;display:grid;justify-items:start;gap:8px}.compatibility-card h2,.compatibility-card p{margin:0}.compatibility-score{font-size:clamp(36px,6vw,54px);line-height:1;font-weight:750;letter-spacing:-2px;color:var(--primary);font-variant-numeric:tabular-nums}.compatibility-card .field-help{margin-top:3px}

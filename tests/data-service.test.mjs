@@ -63,6 +63,7 @@ function serviceWithProfile(profile, existing = null, records = {}) {
     '@angular/fire/firestore': firestore,
     './auth.service': {AuthService: 'auth', validUid: uid => !!uid && !uid.includes('/')},
     './models': models,
+    './engagement': {},
   };
   const exports = {};
   new Function('require', 'exports', compiled)(name => {
@@ -71,6 +72,8 @@ function serviceWithProfile(profile, existing = null, records = {}) {
   }, exports);
   const service = new exports.DataService();
   service.getProfile = async () => profile;
+  service.recordActivity = async () => {};
+  service.refreshEngagement = async () => {};
   return {service, writes, deletions, reads, queries};
 }
 

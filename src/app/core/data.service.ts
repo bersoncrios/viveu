@@ -1,7 +1,8 @@
 import { EnvironmentInjector, Injectable, inject, runInInjectionContext } from '@angular/core';
 import { DocumentData, Firestore, QueryDocumentSnapshot, and, collection, deleteDoc, doc, documentId, getDoc, getDocs, limit, or, orderBy, query, runTransaction, setDoc, startAfter, where } from '@angular/fire/firestore';
+import { activityDates, badgesFor, calculateStreak, EngagementState, historyRanges, localDay } from './engagement';
 import { AuthService, validUid } from './auth.service';
-import { CATEGORIES, Category, ConsumptionEntry, EntryInput, FEELINGS, Following, JOURNEY_NOTE_MAX_LENGTH, JOURNEY_REASON_MAX_LENGTH, JOURNEY_STATUSES, MAX_FEELINGS, MAX_JOURNEY_NOTES, PAGE_SIZE, QueueItem, REFLECTION_MAX_LENGTH, RESUME_POINT_MAX_LENGTH, UserProfile } from './models';
+import { CATEGORIES, Category, ConsumptionEntry, EntryInput, FEELINGS, Following, JOURNEY_NOTE_MAX_LENGTH, JOURNEY_REASON_MAX_LENGTH, JOURNEY_STATUSES, MAX_FEELINGS, MAX_JOURNEY_NOTES, PAGE_SIZE, QueueItem, REFLECTION_MAX_LENGTH, RESUME_POINT_MAX_LENGTH, SharedMemory, SharedMemoryMessage, UserProfile } from './models';
 
 export type Cursor = QueryDocumentSnapshot<DocumentData> | null;
 export interface EntryPage { items: ConsumptionEntry[]; cursor: Cursor; hasMore: boolean; }
@@ -10,6 +11,8 @@ export const MAX_FOLLOWING = 30;
 
 @Injectable({ providedIn: 'root' })
 export class DataService {
+  private pendingBadges = new Map<string, string[]>();
+  engagementWarning = '';
   private readonly db = inject(Firestore);
   private readonly auth = inject(AuthService);
   private readonly injector = inject(EnvironmentInjector);
@@ -17,10 +20,167 @@ export class DataService {
   private uid(): string { return this.auth.requireUser().uid; }
   private checkUid(uid: string): void { if (!validUid(uid)) throw new Error('Informe um UID de perfil válido.'); }
 
+  async createSharedMemory(input: {participantUid: string; workTitle: string; workCategory: Category}): Promise<string> {
+    const uid=this.uid(), title=input.workTitle.trim(); this.checkUid(input.participantUid);
+    if(input.participantUid===uid||!title||title.length>160||!CATEGORIES.some(c=>c.value===input.workCategory)) throw new Error('Confira a pessoa e a obra para compartilhar.');
+    const ref=this.run(()=>doc(collection(this.db,'sharedMemories'))), now=Date.now();
+    await this.run(()=>setDoc(ref,{participants:[uid,input.participantUid],workTitle:title,workCategory:input.workCategory,messageCount:0,createdAt:now,updatedAt:now}));
+    return ref.id;
+  }
+
+  async sharedMemory(id: string): Promise<SharedMemory|null> {
+    this.checkUid(id); const snapshot=await this.run(()=>getDoc(doc(this.db,'sharedMemories',id)));
+    if(!snapshot.exists()) return null;
+    const memory={...snapshot.data(),id:snapshot.id} as SharedMemory;
+    if(!memory.participants.includes(this.uid())) throw new Error('Você não participa desta memória.');
+    return memory;
+  }
+
+  async sharedMemoryMessages(id: string): Promise<SharedMemoryMessage[]> {
+    this.checkUid(id); const memory=await this.sharedMemory(id); if(!memory) return [];
+    const snapshot=await this.run(()=>getDocs(query(collection(this.db,'sharedMemories',id,'messages'),orderBy('createdAt','asc'),limit(100))));
+    return snapshot.docs.map(item=>({...item.data(),id:item.id} as SharedMemoryMessage));
+  }
+
+  async sendSharedMemoryMessage(id: string, input: {text: string; hasSpoiler: boolean}): Promise<void> {
+    this.checkUid(id); const uid=this.uid(), text=input.text.trim();
+    if(!text||text.length>500||typeof input.hasSpoiler!=='boolean') throw new Error('A mensagem deve ter de 1 a 500 caracteres.');
+    const parent=this.run(()=>doc(this.db,'sharedMemories',id)), message=this.run(()=>doc(collection(this.db,'sharedMemories',id,'messages'))), now=Date.now();
+    await this.run(()=>runTransaction(this.db,async tx=>{const snapshot=await tx.get(parent);if(!snapshot.exists()||!(snapshot.data()['participants'] as string[]).includes(uid))throw new Error('Você não participa desta memória.');const count=snapshot.data()['messageCount'];if(!Number.isInteger(count)||count<0||count>=100)throw new Error('Esta memória já chegou a 100 mensagens.');tx.update(parent,{messageCount:count+1,updatedAt:now});tx.set(message,{uid,text,hasSpoiler:input.hasSpoiler,createdAt:now});}));
+  }
+
+  async completeOnboarding(favoriteCategories: Category[]): Promise<void> {
+    const uid=this.uid(), favorites=[...new Set(favoriteCategories)];
+    if(favorites.length!==3 || favorites.some(category=>!CATEGORIES.some(item=>item.value===category))) throw new Error('Escolha três categorias favoritas.');
+    await this.run(()=>setDoc(doc(this.db,'users',uid),{favoriteCategories:favorites,onboardingCompleted:true,updatedAt:Date.now()},{merge:true}));
+  }
+  async lists(ownerUid=this.uid()): Promise<import('./models').ThematicList[]> {
+    this.checkUid(ownerUid);
+    const snapshot=await this.run(()=>getDocs(query(collection(this.db,'lists'),where('ownerUid','==',ownerUid),orderBy('updatedAt','desc'),limit(10))));
+    return snapshot.docs.map(d=>({...d.data(),id:d.id} as import('./models').ThematicList));
+  }
+  async getList(id:string):Promise<import('./models').ThematicList|null>{this.checkUid(id);const s=await this.run(()=>getDoc(doc(this.db,'lists',id)));if(!s.exists())return null;const data=s.data();if(data['isPublic']!==true&&data['ownerUid']!==this.uid())return null;return {...data,id:s.id} as import('./models').ThematicList;}
+  async getEntryReactions(entryId:string):Promise<import('./models').EntryReaction[]>{this.checkUid(entryId);const docs=await this.run(()=>getDocs(collection(this.db,'entries',entryId,'reactions')));return docs.docs.map(d=>({...d.data(),uid:d.id} as import('./models').EntryReaction));}
+  async saveList(input: Omit<import('./models').ThematicList,'id'|'ownerUid'|'items'|'createdAt'|'updatedAt'>, id?:string): Promise<string> {
+    const uid=this.uid(), title=input.title.trim(), description=input.description.trim();
+    if(!title||title.length>80||description.length>280||!['mixed',...CATEGORIES.map(c=>c.value)].includes(input.category)) throw new Error('Confira o título, descrição e categoria da lista.');
+    const reference=this.run(()=>id?doc(this.db,'lists',id):doc(collection(this.db,'lists'))), now=Date.now();
+    if(!id && (await this.lists()).length>=10) throw new Error('Você pode criar até 10 listas.');
+    await this.run(()=>runTransaction(this.db,async tx=>{const old=await tx.get(reference); if(old.exists()&&old.data()['ownerUid']!==uid) throw new Error('Você só pode editar suas listas.'); tx.set(reference,{...input,title,description,ownerUid:uid,items:old.exists()?old.data()['items']:[],createdAt:old.exists()?old.data()['createdAt']:now,updatedAt:now});})); return reference.id;
+  }
+  async addListItem(id:string,titleInput:string,noteInput=''):Promise<void>{
+    const uid=this.uid(),title=titleInput.trim(),note=noteInput.trim(); if(!title||title.length>160||note.length>280) throw new Error('Confira o título e a nota.');
+    const ref=this.run(()=>doc(this.db,'lists',id)); await this.run(()=>runTransaction(this.db,async tx=>{const s=await tx.get(ref);if(!s.exists()||s.data()['ownerUid']!==uid)throw new Error('Lista não encontrada.');const items=s.data()['items'] as import('./models').ThematicListItem[];if(items.length>=50)throw new Error('Cada lista aceita até 50 obras.');tx.update(ref,{items:[...items,{title,...(note?{note}:{})}],updatedAt:Date.now()});}));
+  }
+  async toggleReaction(entryId:string,emoji:import('./models').EntryReaction['emoji']):Promise<void>{
+    const uid=this.uid(), entryRef=this.run(()=>doc(this.db,'entries',entryId)), ref=this.run(()=>doc(this.db,'entries',entryId,'reactions',uid));
+    await this.run(()=>runTransaction(this.db,async tx=>{const [entry,reaction]=await Promise.all([tx.get(entryRef),tx.get(ref)]);if(!entry.exists()||entry.data()['authorId']===uid)throw new Error('Você não pode reagir ao próprio registro.');if(reaction.exists()&&reaction.data()['emoji']===emoji)tx.delete(ref);else tx.set(ref,{uid,emoji,reactedAt:Date.now()});}));
+  }
+  async setNowWatching(value:import('./models').NowWatching|null):Promise<void>{const uid=this.uid();if(value&&(!value.title.trim()||value.title.length>160||!CATEGORIES.some(c=>c.value===value.category)))throw new Error('Confira o título e a categoria.');await this.run(()=>setDoc(doc(this.db,'users',uid),{nowWatching:value?{...value,title:value.title.trim(),since:Date.now(),expiresAt:Date.now()+7*86400000}:null,updatedAt:Date.now()},{merge:true}));}
+  async setNotificationPreferences(value:NonNullable<UserProfile['notificationPreferences']>):Promise<void>{const uid=this.uid();await this.run(()=>setDoc(doc(this.db,'users',uid,'private','notifications'),value));}
+  async getNotificationPreferences():Promise<NonNullable<UserProfile['notificationPreferences']>>{const uid=this.uid();const snapshot=await this.run(()=>getDoc(doc(this.db,'users',uid,'private','notifications')));return snapshot.exists()?snapshot.data() as NonNullable<UserProfile['notificationPreferences']>:{enabled:false,matchInQueue:false,reactions:false,streakReminder:false};}
+
   async getProfile(uid: string): Promise<UserProfile | null> {
     this.checkUid(uid);
     const snapshot = await this.run(() => getDoc(doc(this.db, 'users', uid)));
     return snapshot.exists() ? snapshot.data() as UserProfile : null;
+  }
+
+  /** Complete history is required for lifetime achievements; page through the existing index. */
+  async allEntries(uid = this.uid()): Promise<ConsumptionEntry[]> {
+    const entries: ConsumptionEntry[] = []; let cursor: Cursor = null;
+    do {const page = await this.entriesPage(uid, cursor); entries.push(...page.items); cursor = page.hasMore ? page.cursor : null;} while (cursor);
+    return entries;
+  }
+
+  async entriesBetween(uid: string, start: number, end: number): Promise<ConsumptionEntry[]> {
+    this.checkUid(uid);
+    if (!Number.isFinite(start) || !Number.isFinite(end) || start >= end) throw new Error('Confira o período.');
+    const items: ConsumptionEntry[] = []; let cursor: Cursor = null;
+    do {
+      const page = await this.run(() => getDocs(query(collection(this.db, 'entries'), where('authorId', '==', uid),
+        where('createdAt', '>=', start), where('createdAt', '<', end), orderBy('createdAt', 'desc'), orderBy(documentId(), 'desc'),
+        ...(cursor ? [startAfter(cursor)] : []), limit(100))));
+      items.push(...page.docs.map(d => ({...d.data(), id: d.id} as ConsumptionEntry)));
+      cursor = page.size === 100 ? page.docs.at(-1)! : null;
+    } while (cursor);
+    return items;
+  }
+
+  async historyEntries(now = new Date()): Promise<ConsumptionEntry[]> {
+    const uid = this.uid();
+    const results = await Promise.all(historyRanges(now).map(r => this.entriesBetween(uid, r.start, r.end)));
+    return [...new Map(results.flat().map(e => [e.id, e])).values()].sort((a, b) => b.createdAt - a.createdAt);
+  }
+
+  /** A visitor can only create their own immutable receipt; never edit another user's profile. */
+  async recordProfileVisit(targetUid: string): Promise<void> {
+    const visitor = this.uid(); this.checkUid(targetUid); if (targetUid === visitor) return;
+    const reference = this.run(() => doc(this.db, 'users', targetUid, 'visits', visitor));
+    await this.run(() => runTransaction(this.db, async tx => {
+      const existing = await tx.get(reference);
+      if (!existing.exists()) tx.set(reference, {visitorId: visitor, createdAt: Date.now()});
+    }));
+  }
+
+  private async recordActivity(now: number): Promise<void> {
+    const uid = this.uid(), day = localDay(now);
+    await this.run(() => setDoc(doc(this.db, 'users', uid, 'activityDays', day), {date: day, createdAt: now}));
+  }
+
+  async unlockTogetherBadge(): Promise<void> {
+    const uid = this.uid();
+    const reference = this.run(() => doc(this.db, 'users', uid));
+    await this.run(() => runTransaction(this.db, async tx => {
+      const snapshot = await tx.get(reference); if (!snapshot.exists()) return;
+      const badges = snapshot.data()['badges'] ?? [];
+      if (!badges.includes('first-together')) {tx.update(reference, {badges: [...badges, 'first-together']}); this.pendingBadges.set(uid, [...(this.pendingBadges.get(uid) ?? []), 'first-together']);}
+    }));
+    await this.recordActivity(Date.now());
+  }
+
+  acknowledgeBadges(): void {this.pendingBadges.delete(this.uid());}
+
+  private async refreshEngagement(): Promise<void> {
+    const uid = this.uid();
+    try {
+      const [entries, queue] = await Promise.all([this.allEntries(uid), this.queue()]);
+      if (this.uid() !== uid) return;
+      const state = await this.syncEngagement(entries, queue);
+      this.pendingBadges.set(uid, state.newBadges);
+      this.engagementWarning = '';
+    } catch {this.engagementWarning = 'Sua experiência foi salva. As conquistas serão atualizadas quando você voltar ao feed.';}
+  }
+
+  async activityTimestamps(): Promise<number[]> {
+    const uid = this.uid();
+    const days = await this.run(() => getDocs(query(collection(this.db, 'users', uid, 'activityDays'))));
+    return days.docs.map(d => d.data()['createdAt'] as number).filter(Number.isFinite);
+  }
+
+  async syncEngagement(entries: ConsumptionEntry[], queue: QueueItem[]): Promise<EngagementState> {
+    const uid = this.uid();
+    const [ledger, visits] = await Promise.all([
+      this.run(() => getDocs(query(collection(this.db, 'users', uid, 'activityDays')))),
+      this.run(() => getDocs(query(collection(this.db, 'users', uid, 'visits'), limit(1)))),
+    ]);
+    if (this.uid() !== uid) throw new Error('A conta mudou. Recarregue seu feed.');
+    const dates = [...activityDates(entries.filter(entry => !entry.authorId || entry.authorId === uid), queue), ...ledger.docs.map(d => d.data()['createdAt'] as number)];
+    const streakCount = calculateStreak(dates);
+    const last = dates.filter(Number.isFinite).sort((a, b) => b - a)[0];
+    const lastActivityDate = last ? localDay(last) : '';
+    const unlocked = badgesFor(entries.filter(entry => !entry.authorId || entry.authorId === uid), queue, !visits.empty);
+    const reference = this.run(() => doc(this.db, 'users', uid));
+    return this.run(() => runTransaction(this.db, async tx => {
+      const snapshot = await tx.get(reference); if (!snapshot.exists()) throw new Error('Conclua seu perfil.');
+      const profile = snapshot.data();
+      const previous = Array.isArray(profile['badges']) ? profile['badges'] as string[] : [];
+      const badges = [...new Set([...previous, ...unlocked])];
+      const broken = (profile['streakCount'] ?? 0) > 0 && streakCount === 0;
+      const state = {streakCount, lastActivityDate, badges, newBadges: [...new Set([...(this.pendingBadges.get(uid) ?? []), ...badges.filter(id => !previous.includes(id))])], broken};
+      tx.update(reference, {streakCount, lastActivityDate, badges});
+      return state;
+    }));
   }
 
   async searchProfiles(name: string, cursor: Cursor = null): Promise<ProfileSearchPage> {
@@ -97,6 +257,7 @@ export class DataService {
     };
     const reference = this.run(() => id ? doc(this.db, 'entries', id) : doc(collection(this.db, 'entries')));
     const now = Date.now();
+    let qualifiesActivity = false;
     const queueReference = queueId ? this.run(() => doc(this.db, 'users', uid, 'queue', queueId)) : null;
     await this.run(() => runTransaction(this.db, async (transaction) => {
       const existing = id ? await transaction.get(reference) : null;
@@ -120,6 +281,7 @@ export class DataService {
         merged['reason'] = queued.data()['reason'];
       }
       const details = this.entryDetails(merged as EntryInput);
+      qualifiesActivity = details.status === 'completed' || details.notes.some(note => !(previous['notes'] ?? []).some((old: {id: string; text: string}) => old.id === note.id && old.text === note.text));
       if (details.status === 'completed' && input.rating === null) throw new Error('Escolha uma nota de 1 a 5 para concluir.');
       if (id && Array.isArray(previous['notes'])) {
         const dates = new Map((previous['notes'] as {id: string; createdAt: number}[]).map(note => [note.id, note.createdAt]));
@@ -138,7 +300,15 @@ export class DataService {
           ? previous['updatedAt'] + 1 : now),
       });
       if (queueReference) transaction.delete(queueReference);
+      const active = profile.nowWatching;
+      if (details.status === 'completed' && active && active.category === input.category
+        && active.title.trim().normalize('NFKC').toLocaleLowerCase('pt-BR') === title.normalize('NFKC').toLocaleLowerCase('pt-BR')) {
+        transaction.update(this.run(() => doc(this.db, 'users', uid)), {nowWatching: null, updatedAt: now});
+      }
     }));
+    if (qualifiesActivity) await this.recordActivity(now).catch(() => {this.engagementWarning = 'Não foi possível atualizar sua sequência. Tente novamente ao voltar ao feed.';});
+    await this.refreshEngagement();
+    if(typeof window!=='undefined') window.dispatchEvent(new Event('viveu-entry-saved'));
     return reference.id;
   }
 
@@ -240,7 +410,10 @@ export class DataService {
     this.validateTitleCategory(title, category);
     const items = await this.queue();
     const reference = this.run(() => doc(collection(this.db, 'users', uid, 'queue')));
-    await this.run(() => setDoc(reference, { title, category, reason, position: (items.at(-1)?.position ?? 0) + 1, createdAt: Date.now() }));
+    const now = Date.now();
+    await this.run(() => setDoc(reference, { title, category, reason, position: (items.at(-1)?.position ?? 0) + 1, createdAt: now }));
+    await this.recordActivity(now).catch(() => {this.engagementWarning = 'Não foi possível atualizar sua sequência. Tente novamente ao voltar ao feed.';});
+    await this.refreshEngagement();
   }
 
   async removeQueue(id: string): Promise<void> {
