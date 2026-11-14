@@ -3,5 +3,12 @@
   "framework": "angular",
   "buildCommand": "npm run build:vercel",
   "outputDirectory": "dist/viveu/browser",
-  "rewrites": [{"source": "/((?!.*\\.).*)", "destination": "/index.html"}]
+  "functions": {
+    "api/pitch.mjs": {"includeFiles": "docs/PITCH_INVESTIMENTO_VIVEU.html"}
+  },
+  "rewrites": [
+    {"source": "/pitch", "destination": "/api/pitch"},
+    {"source": "/docs/PITCH_INVESTIMENTO_VIVEU.html", "destination": "/api/pitch"},
+    {"source": "/((?!api(?:/|$))(?!.*\\.).*)", "destination": "/index.html"}
+  ]
 }
