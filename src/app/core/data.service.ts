@@ -52,7 +52,12 @@ export class DataService {
   async completeOnboarding(favoriteCategories: Category[]): Promise<void> {
     const uid=this.uid(), favorites=[...new Set(favoriteCategories)];
     if(favorites.length!==3 || favorites.some(category=>!CATEGORIES.some(item=>item.value===category))) throw new Error('Escolha três categorias favoritas.');
-    await this.run(()=>setDoc(doc(this.db,'users',uid),{favoriteCategories:favorites,onboardingCompleted:true,updatedAt:Date.now()},{merge:true}));
+    const patch = {favoriteCategories:favorites,onboardingCompleted:true,updatedAt:Date.now()};
+    await this.run(()=>setDoc(doc(this.db,'users',uid),patch,{merge:true}));
+    // Publish the confirmed write before the caller advances or the guard reads the profile.
+    if (this.auth.user()?.uid === uid) {
+      this.auth.profile.update(profile => profile?.uid === uid ? {...profile, ...patch} : profile);
+    }
   }
   async lists(ownerUid=this.uid()): Promise<import('./models').ThematicList[]> {
     this.checkUid(ownerUid);
